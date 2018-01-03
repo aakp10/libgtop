@@ -52,9 +52,9 @@ local_addr6_contains(local_addr *laddr, const struct in6_addr &n_addr)
 }
 
 local_addr*
-get_device_local_addr(const char *device)
+get_device_local_addr(const char *device, local_addr *laddr)
 {
-	local_addr *interface_local_addr ;
+	local_addr *interface_local_addr = laddr;
 	struct ifaddrs *ifaddr, *ifa;
 	if(getifaddrs(&ifaddr) == -1)
 	{

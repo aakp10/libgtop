@@ -200,8 +200,11 @@ open_pcap_handles()
 	gboolean init_ele = true ; 
 	while(count < buf.number){
 		packet_handle *new_handle = get_interface_handle(devices[count], if_error);
-		if ((interface_local_addr = get_device_local_addr(devices[count])) == NULL)
+		local_addr *temp;
+		if ((temp = get_device_local_addr(devices[count], interface_local_addr)) == NULL)
 			printf("Failed to get addr for %s\n",devices[count]);
+		else
+			interface_local_addr = temp;
 		if(new_handle != NULL)
 		{	if(init_ele)
 			{
