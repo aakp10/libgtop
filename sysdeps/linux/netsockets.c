@@ -6,6 +6,7 @@
 #include "proc_inode_parser.h"
 #include <glibtop/procstate.h>
 #include <glib.h>
+#include <arpa/inet.h>
 
 gint 
 match_pid(int inode, GHashTable *inode_table)
@@ -21,7 +22,7 @@ gint
 match_hash_to_inode(char *hash, GHashTable *hash_table)
 {
 	if (g_hash_table_contains(hash_table, hash))
-	{
+	{	
 		return GPOINTER_TO_INT(g_hash_table_lookup(hash_table, hash));
 	}
 	return -1;
@@ -35,6 +36,7 @@ add_socket_list(char *buf, glibtop_socket *list_socket, GHashTable *inode_table,
 	glibtop_socket *temp_socket = g_slice_new(glibtop_socket);
 	temp_socket->local_addr = g_slice_new(in6_addr);
 	temp_socket->rem_addr = g_slice_new(in6_addr);
+	char temp_hash[92];
 
 	if (list_socket != NULL)
 		list_socket->next = temp_socket;
@@ -72,6 +74,12 @@ add_socket_list(char *buf, glibtop_socket *list_socket, GHashTable *inode_table,
 					&((temp_socket->rem_addr)->s6_addr32[2]),
 					&((temp_socket->rem_addr)->s6_addr32[3]));
 		temp_socket->sa_family = AF_INET6;
+	//	snprintf(temp_hash, HASHKEYSIZE * sizeof(char), "%s:%d-%s:%d", temp_local_addr, temp_socket->local_port, temp_rem_addr, temp_socket->rem_port);
+		char lip[128];
+		char rip[128];
+		inet_ntop(AF_INET6, temp_local_addr, lip, sizeof(lip));
+		inet_ntop(AF_INET6,temp_rem_addr, rip, sizeof(rip));
+		snprintf(temp_hash, HASHKEYSIZE * sizeof(char), "%s:%d-%s:%d", lip, temp_socket->local_port, rip, temp_socket->rem_port);
 
 	}
 	else//it is IPv4
@@ -79,10 +87,14 @@ add_socket_list(char *buf, glibtop_socket *list_socket, GHashTable *inode_table,
 			sscanf(temp_local_addr, "%X", (unsigned int *)&(*(temp_socket->local_addr)));
 			sscanf(temp_rem_addr, "%X", (unsigned int *)&(*(temp_socket->rem_addr)));
 			temp_socket->sa_family = AF_INET;
+			char lip[128];
+			char rip[128];
+			inet_ntop(AF_INET, temp_local_addr, lip, sizeof(lip));
+			inet_ntop(AF_INET,temp_rem_addr, rip, sizeof(rip));
+			snprintf(temp_hash, HASHKEYSIZE * sizeof(char), "%s:%d-%s:%d", lip, temp_socket->local_port, rip, temp_socket->rem_port);
+	
 	}
 	//check for malloc
-	char temp_hash[92];
-	snprintf(temp_hash, HASHKEYSIZE * sizeof(char), "%s:%d-%s:%d", temp_local_addr, temp_socket->local_port, temp_rem_addr, temp_socket->rem_port);
 	temp_socket->sock_hash = g_strdup(temp_hash);
 	g_hash_table_insert(hash_table, temp_socket->sock_hash, GINT_TO_POINTER(temp_socket->inode));
 	temp_socket->next = NULL;
