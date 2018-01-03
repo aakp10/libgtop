@@ -11,6 +11,7 @@
 #include "net_process.h"
 #include "netsockets.h"
 #include <glib.h>
+#include <net/ethernet.h>
 /*GLOBAL HASH TABLE */
 local_addr *interface_local_addr;
 int promisc = 0;
@@ -19,8 +20,8 @@ timeval curtime;
 GHashTable *inode_table = g_hash_table_new(g_direct_hash, g_direct_equal);
 GHashTable *hash_table = g_hash_table_new(g_str_hash, g_str_equal);
 
-Net_process_list *processes;//global process list
-Net_process *unknownTCP;
+Net_process_list *processes = g_slice_new(Net_process_list);//global process list
+Net_process *unknownTCP = g_slice_new(Net_process);
 
 void handles_set_hash(GHashTable *inode, GHashTable *hash)
 {
@@ -32,6 +33,18 @@ void handles_set_process_lists(Net_process_list *procs, Net_process *tcp)
 {
 	processes = procs;
 	unknownTCP = tcp;
+}
+
+void
+process_init()
+{
+	Net_process_init(unknownTCP, 0, "", "unknownTCP");
+	Net_process_list_init(processes, unknownTCP, NULL);
+}
+Net_process_list*
+get_processes()
+{
+	return processes;
 }
 
 timeval
@@ -144,8 +157,12 @@ add_callback(packet_handle *handle ,enum packet_type type ,packet_callback callb
 
 packet_handle*
 get_interface_handle(char *device, GError **err)
-{
+{	
+	bpf_u_int32 maskp; // subnet mask
+	bpf_u_int32 netp; // interface IP
+
 	pcap_t *temp = pcap_open_live(device, BUFSIZ, promisc, 100, errbuf);
+	pcap_lookupnet(device, &netp, &maskp, errbuf);
 	if(temp == NULL)
 	{
 		g_set_error(err,
@@ -279,6 +296,7 @@ packet_parse_ip(packet_handle *handle, const struct pcap_pkthdr *hdr, const u_ch
 	switch(ip_packet->ip_p)
 	{
 		case IPPROTO_TCP:
+			printf("exec tcp\n");
 			packet_parse_tcp(handle, hdr, pkt);
 			break;
 		//non tcp IP packet support not present currently
@@ -286,14 +304,34 @@ packet_parse_ip(packet_handle *handle, const struct pcap_pkthdr *hdr, const u_ch
 			break;
 	}
 }
+
+void
+packet_parse_ethernet(packet_handle * handle, const struct pcap_pkthdr *hdr, const u_char *pkt)
+{
+	const struct ether_header *ethernet = (struct ether_header *)pkt;
+	u_char *payload = (u_char *)pkt + sizeof(struct ether_header);	
+	switch (ntohs(ethernet->ether_type)) 
+	{
+	case ETHERTYPE_IP:
+ 		printf("ethertype ip exec");
+		packet_parse_ip(handle, hdr, payload);
+		break;
+	/*case ETHERTYPE_IPV6:
+		printf("ethertype ip exec");
+		//dp_parse_ip6(handle, header, payload);
+		break;
+	*/
+	}
+}
+
 void
 packet_pcap_callback(u_char *u_handle, const struct pcap_pkthdr *hdr, const u_char *pkt)
-{
+{	
 	packet_handle *handle = (packet_handle *)u_handle;
 	switch(handle->linktype)
 	{
-	case (DLT_NULL):
-		packet_parse_ip(handle, hdr, pkt);
+	case (DLT_EN10MB):
+		packet_parse_ethernet(handle, hdr, pkt);
 		break;
 	/*
 	case (DLT_EN10MB):
