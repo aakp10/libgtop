@@ -2,6 +2,8 @@
 #include <glib.h>
 #include "interface_local_addr.h"
 #include "dev_handles.h"
+#include <arpa/inet.h>
+#include <stdlib.h>
 
 local_addr *pkt_interface_local_addr;
 
@@ -155,27 +157,27 @@ Packet_gethash(Packet *pkt)
 
 	//free pkt_hash
 	char pkt_hash[92];
-		switch(pkt->sa_family)
-		{
-		case AF_INET:
-			if (is_pkt_outgoing(pkt))
-				snprintf(pkt_hash, HASHKEYSIZE*sizeof(char), "%s:%d-%s:%d",
-					pkt->sip, pkt->sport, pkt->dip, pkt->dport);
-			else
-				snprintf(pkt_hash, HASHKEYSIZE*sizeof(char), "%s:%d-%s:%d",
-					pkt->dip, pkt->dport, pkt->sip, pkt->sport);
-			break;
-
-		case AF_INET6:
-			if (is_pkt_outgoing(pkt))
-				snprintf(pkt_hash, HASHKEYSIZE*sizeof(char), "%s:%d-%s:%d",
-					pkt->sip6, pkt->sport, pkt->dip6, pkt->dport);
-			else
-				snprintf(pkt_hash, HASHKEYSIZE*sizeof(char), "%s:%d-%s:%d",
-					pkt->dip6, pkt->dport, pkt->sip6, pkt->sport);
-			break;
-		}
+	char *local_string = (char *)malloc(50);
+	char *remote_string = (char *)malloc(50);
+	if (pkt->sa_family == AF_INET)
+	 {
+		inet_ntop(pkt->sa_family, &(pkt->sip), local_string, 49);
+		inet_ntop(pkt->sa_family, &(pkt->dip), remote_string, 49);
+	} else 
+	{
+		inet_ntop(pkt->sa_family, &(pkt->sip6), local_string, 49);
+		inet_ntop(pkt->sa_family, &(pkt->dip6), remote_string, 49);
+	}
+	if (is_pkt_outgoing(pkt))
+		snprintf(pkt_hash, HASHKEYSIZE*sizeof(char), "%s:%d-%s:%d",
+				local_string, pkt->sport, pkt->dip, remote_string);
+	else
+		snprintf(pkt_hash, HASHKEYSIZE*sizeof(char), "%s:%d-%s:%d",
+				remote_string, pkt->dport, local_string, pkt->sport);
+	free(local_string);
+	free(remote_string);
 	pkt->pkt_hash = g_strdup(pkt_hash);
+	printf("hash%s\n", pkt->pkt_hash);
 	return pkt->pkt_hash;
 }
 
