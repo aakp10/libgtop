@@ -77,7 +77,7 @@ int main()
 	packet_args *userdata = g_slice_new(packet_args); 
 	while(1)
 	{	
-
+		handles = handles->next;
 		for(packet_handle *current_handle = handles; current_handle != NULL; current_handle = current_handle->next)
 		{	
 			userdata->device = current_handle->device_name;
