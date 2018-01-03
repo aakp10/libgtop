@@ -22,17 +22,11 @@ size(Net_process_list *plist)
 		i += size(plist->next);
 	return i;
 }
-void
-process_init()
-{
-	Net_process_init(unknwownTCP, 0, "", "unknwownTCP");
-	Net_process_list_init(test_processes, unknwownTCP, NULL);
-}
 
 void 
 do_refresh()
-{	g_hash_table_destroy(test_inode_table);
-	g_hash_table_destroy(test_hash_table);
+{	/*g_hash_table_destroy(test_inode_table);
+	g_hash_table_destroy(test_hash_table);*/
 	test_inode_table = g_hash_table_new(g_direct_hash, g_direct_equal);
 	test_hash_table = g_hash_table_new(g_str_hash, g_str_equal);
 	
@@ -42,8 +36,8 @@ do_refresh()
 
 	handles_set_hash(test_inode_table, test_hash_table);
 
-	Net_process_list *curproc = test_processes;
-	int nproc = size(test_processes);
+	Net_process_list *curproc = get_processes();
+	int nproc = size(curproc);
 	stat_entry *st = (stat_entry *)calloc(nproc, sizeof(stat_entry));
 	int n = 0;
 	while(curproc != NULL)
