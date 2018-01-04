@@ -8,6 +8,16 @@
 G_BEGIN_DECLS
 
 #define HASHKEYSIZE 92
+typedef struct _global_hashes global_hashes;
+struct _global_hashes
+{
+	GHashTable *inode_table;
+	GHashTable *hash_table;
+};
+
+global_hashes get_global_hashes_instance();
+
+
 typedef struct _glibtop_socket glibtop_socket;
 struct _glibtop_socket
 {

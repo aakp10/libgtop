@@ -11,7 +11,7 @@
 gint 
 match_pid(int inode, GHashTable *inode_table)
 {
-	if (g_hash_table_contains(inode_table, GINT_TO_POINTER(inode)))
+	if (g_hash_table_lookup(inode_table, GINT_TO_POINTER(inode)) != NULL)
 	{
 		return GPOINTER_TO_INT(g_hash_table_lookup(inode_table, GINT_TO_POINTER(inode)));
 	}
@@ -21,7 +21,7 @@ match_pid(int inode, GHashTable *inode_table)
 gint
 match_hash_to_inode(char *hash, GHashTable *hash_table)
 {
-	if (g_hash_table_contains(hash_table, hash))
+	if (g_hash_table_lookup(hash_table, hash) != NULL)
 	{	
 		return GPOINTER_TO_INT(g_hash_table_lookup(hash_table, hash));
 	}
@@ -126,4 +126,22 @@ glibtop_get_netsockets (char *filename, GHashTable *inode_table, GHashTable *has
 	next_socket = add_socket_list(line, next_socket, inode_table, hash_table);
 	}
 	return socket_list;
+}
+
+void
+global_hashes_init(global_hashes &gh)
+{	if(gh.inode_table == NULL)
+		gh.inode_table  = g_hash_table_new(g_direct_hash, g_direct_equal);
+	if(gh.hash_table == NULL)
+		gh.hash_table = g_hash_table_new(g_str_hash, g_str_equal);
+}
+
+global_hashes 
+get_global_hashes_instance()
+{
+	static global_hashes gh_temp = {NULL,NULL};
+	if(gh_temp.inode_table == NULL || gh_temp.hash_table == NULL)
+	{	global_hashes_init(gh_temp);
+	}
+	return gh_temp;
 }
