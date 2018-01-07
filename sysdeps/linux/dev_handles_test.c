@@ -9,10 +9,10 @@
 #include "netsockets.h"
 
 static time_t last_refresh_time = 0;
-GHashTable *test_inode_table ;
-GHashTable *test_hash_table ;
-Net_process_list *test_processes = g_slice_new(Net_process_list);//global process list
-Net_process *unknwownTCP = g_slice_new(Net_process);
+//GHashTable *test_inode_table ;
+//GHashTable *test_hash_table ;
+//Net_process_list *test_processes = g_slice_new(Net_process_list);//global process list
+//Net_process *unknwownTCP = g_slice_new(Net_process);
 
 int 
 size(Net_process_list *plist)
@@ -27,16 +27,13 @@ void
 do_refresh()
 {	/*g_hash_table_destroy(test_inode_table);
 	g_hash_table_destroy(test_hash_table);*/
-	test_inode_table = g_hash_table_new(g_direct_hash, g_direct_equal);
-	test_hash_table = g_hash_table_new(g_str_hash, g_str_equal);
+	//test_inode_table = g_hash_table_new(g_direct_hash, g_direct_equal);
+	//test_hash_table = g_hash_table_new(g_str_hash, g_str_equal);
 	
 	char *fname = g_strdup("/proc/net/tcp");
 	glibtop_socket *socket_list = glibtop_get_netsockets (fname, test_inode_table, test_hash_table);
 	g_free(fname);
-
-	handles_set_hash(test_inode_table, test_hash_table);
-
-	Net_process_list *curproc = get_processes();
+	Net_process_list *curproc = get_proc_list_instance();
 	int nproc = size(curproc);
 	stat_entry *st = (stat_entry *)calloc(nproc, sizeof(stat_entry));
 	int n = 0;
@@ -62,13 +59,10 @@ do_refresh()
 int main()
 {	
 	char *fname = g_strdup("/proc/net/tcp");
-	test_inode_table = g_hash_table_new(g_direct_hash, g_direct_equal);
-	test_hash_table = g_hash_table_new(g_str_hash, g_str_equal);
-	glibtop_socket *socket_list = glibtop_get_netsockets (fname, test_inode_table, test_hash_table);
+	global_hashes test_hash = get_global_hashes_instance();
+	glibtop_socket *socket_list = glibtop_get_netsockets (fname, test_hash.inode_table, test_hash.hash_table);
 	g_free(fname);
-	handles_set_hash(test_inode_table, test_hash_table);
 	process_init();
-	handles_set_process_lists(test_processes, unknwownTCP);
 	packet_handle *handles = open_pcap_handles();
 	printf("\n PCAP HANDLES \n");
 	print_pcap_handles(handles);
@@ -94,7 +88,7 @@ int main()
 		if (last_refresh_time + refresh_delay <= now)
 		{	
 			last_refresh_time = now;
-			g_slice_free(glibtop_socket, socket_list); //free the socket details struct 
+			//error in opening file free later//g_slice_free(glibtop_socket, socket_list); //free the socket details struct 
 			do_refresh();
 		}
 	}

@@ -38,6 +38,7 @@ uid_t Net_process_get_uid(Net_process *proc);
 //Net_process_list function
 void Net_process_list_init(Net_process_list *plist, Net_process *proc, Net_process_list *next_val);
 Net_process *Net_process_list_get_proc(Net_process_list *plist);
-G_END_DECLS
+Net_process_list *get_proc_list_instance(Net_process_list *val);
+Net_process *get_unknown_proc_instance(Net_process *val);
 
 #endif

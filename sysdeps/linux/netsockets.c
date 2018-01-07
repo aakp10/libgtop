@@ -9,8 +9,8 @@
 #include <arpa/inet.h>
 
 gint 
-match_pid(int inode, GHashTable *inode_table)
-{
+match_pid(int inode)
+{	 GHashTable *inode_table = get_global_hashes_instance().inode_table;
 	if (g_hash_table_lookup(inode_table, GINT_TO_POINTER(inode)) != NULL)
 	{
 		return GPOINTER_TO_INT(g_hash_table_lookup(inode_table, GINT_TO_POINTER(inode)));
@@ -19,8 +19,9 @@ match_pid(int inode, GHashTable *inode_table)
 }
 
 gint
-match_hash_to_inode(char *hash, GHashTable *hash_table)
+match_hash_to_inode(char *hash)
 {
+	GHashTable *hash_table = get_global_hashes_instance().hash_table;
 	if (g_hash_table_lookup(hash_table, hash) != NULL)
 	{	
 		return GPOINTER_TO_INT(g_hash_table_lookup(hash_table, hash));

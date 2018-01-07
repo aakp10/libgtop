@@ -1,7 +1,7 @@
 #include "connection.h"
 #include "packet.h"
 //global list of all connections being monitored
-Conn_list *connections;
+//Conn_list *connections;
 //initializer for packet list node
 void
 Packet_list_node_init(Packet_list_node *pktlist_node, Packet *pkt_val, Packet_list_node *next_val)
@@ -60,7 +60,6 @@ void add_packet_to_connection(Connection *conn, Packet *pkt)
 	{
 		conn->bytes_sent += pkt->len;
 		addPacket(conn->sent_packets,pkt);
-
 	}
 	else
 	{
@@ -94,12 +93,24 @@ Connection_list_get_next(Conn_list *clist)
 	return clist->next;
 }
 
+Conn_list *
+get_global_connections_instance(Conn_list *val)
+{
+	static Conn_list *global_connections_list = NULL;
+	if (val != NULL)
+		global_connections_list = val;
+	else if (global_connections_list == NULL)
+		global_connections_list = g_slice_new(Conn_list);
+	return global_connections_list;
+}
+
 void
 Connection_init(Connection *conn, Packet *pkt)
 {
 	Conn_list *temp = g_slice_new(Conn_list);
+	Conn_list *connections = get_global_connections_instance(NULL);
 	Conn_list_init(temp, conn,connections);
-	connections = temp;
+	get_global_connections_instance(temp); //to set connections = temp in the static var global_connections_list
 	conn->sent_packets = g_slice_new(Packet_list);
 	Packet_list_init_beg(conn->sent_packets);
 	conn->received_packets = g_slice_new(Packet_list);
@@ -126,7 +137,7 @@ Connection_init(Connection *conn, Packet *pkt)
 Connection *
 find_connection_with_matching_source(Packet *pkt)
 {
-	Conn_list *current = connections;
+	Conn_list *current = get_global_connections_instance(NULL);
 	while (current != NULL)
 	{
 		if (packet_match_source(pkt, Conn_list_get_connection(current)->ref_packet))
@@ -140,7 +151,7 @@ find_connection_with_matching_source(Packet *pkt)
 Connection *
 find_connection_with_matching_ref_packet_or_source(Packet *pkt)
 {
-	Conn_list *current = connections;
+	Conn_list *current = get_global_connections_instance(NULL);
 	while (current != NULL)
 	{
 		if (packet_match(pkt, Conn_list_get_connection(current)->ref_packet))

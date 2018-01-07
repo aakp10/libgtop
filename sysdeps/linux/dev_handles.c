@@ -13,15 +13,12 @@
 #include <glib.h>
 #include <net/ethernet.h>
 /*GLOBAL HASH TABLE */
-local_addr *interface_local_addr;
+//local_addr *interface_local_addr;
 int promisc = 0;
 char errbuf[PCAP_ERRBUF_SIZE];
 timeval curtime;
-GHashTable *inode_table = g_hash_table_new(g_direct_hash, g_direct_equal);
-GHashTable *hash_table = g_hash_table_new(g_str_hash, g_str_equal);
-
-Net_process_list *processes = g_slice_new(Net_process_list);//global process list
-Net_process *unknownTCP = g_slice_new(Net_process);
+//GHashTable *inode_table = g_hash_table_new(g_direct_hash, g_direct_equal);
+//GHashTable *hash_table = g_hash_table_new(g_str_hash, g_str_equal);
 
 void handles_set_hash(GHashTable *inode, GHashTable *hash)
 {
@@ -38,9 +35,13 @@ void handles_set_process_lists(Net_process_list *procs, Net_process *tcp)
 void
 process_init()
 {
+	Net_process_list *processes = get_proc_list_instance(NULL);//global process list
+	Net_process *unknownTCP = get_unknown_proc_instance(NULL);
+
 	Net_process_init(unknownTCP, 0, "", "unknownTCP");
 	Net_process_list_init(processes, unknownTCP, NULL);
 }
+
 Net_process_list*
 get_processes()
 {
@@ -54,8 +55,8 @@ get_curtime()
 }
 Net_process *get_process_from_inode(unsigned long inode, const char *device_name)
 {
-	int pid = match_pid(inode, inode_table);
-	Net_process_list *current = processes ;/*global list of all procs*/
+	int pid = match_pid(inode, get_global_hashes_instance().inode_table);
+	Net_process_list *current = get_proc_list_instance(NULL) ;/*global list of all procs*/
 	while (current != NULL)
 	{
 		Net_process *curr_process = Net_process_list_get_proc(current);
@@ -67,21 +68,20 @@ Net_process *get_process_from_inode(unsigned long inode, const char *device_name
 	return NULL;
 }
 
-Net_process *get_process(Connection *conn, const char *device_name
-						/*GHashTable *hash_inode_table pass the table which is mainained globally */
- 							/*GHashTable *inode_table pass the global table holding inode vs proc name*/)
+Net_process 
+*get_process(Connection *conn, const char *device_name)
 {
-	unsigned long inode = match_hash_to_inode(Packet_gethash(conn->ref_packet),hash_table);
+	unsigned long inode = match_hash_to_inode(Packet_gethash(conn->ref_packet));
 	if (inode == -1)
 	{
 		Packet *reverse_pkt = get_inverted_packet(conn->ref_packet);
-		inode = match_hash_to_inode(Packet_gethash(reverse_pkt), hash_table);
+		inode = match_hash_to_inode(Packet_gethash(reverse_pkt));
 		if (inode == -1)
 		{	g_slice_free(Packet, reverse_pkt);
 			Conn_list *temp = g_slice_new(Conn_list);
-			Conn_list_init(temp, conn, unknownTCP->proc_connections/*define this globally*/);
-			unknownTCP->proc_connections = temp;
-			return unknownTCP;
+			Conn_list_init(temp, conn, get_unknown_proc_instance(NULL)->proc_connections);
+			get_unknown_proc_instance(NULL)->proc_connections = temp; //assigning this connection to unknown TCP 
+			return get_unknown_proc_instance(NULL);
 		}
 		g_slice_free(Packet, conn->ref_packet);
 		conn->ref_packet = reverse_pkt;
@@ -93,8 +93,8 @@ Net_process *get_process(Connection *conn, const char *device_name
 		proc = g_slice_new(Net_process);
 		Net_process_init(proc, inode,"", Packet_gethash(conn->ref_packet));
 		Net_process_list *temp = g_slice_new(Net_process_list);
-		Net_process_list_init(temp, proc, processes/*global proc list*/);
-		processes = temp;
+		Net_process_list_init(temp, proc, get_proc_list_instance());
+		get_global_hashes_instance(temp);	//processes = temp
 	}
 	Conn_list *temp_list = g_slice_new(Conn_list);
 	Conn_list_init(temp_list, conn, proc->proc_connections);
@@ -102,6 +102,7 @@ Net_process *get_process(Connection *conn, const char *device_name
 
 	return proc;
 }
+
 int 
 process_ip(u_char *userdata, const struct pcap_pkthdr * /* header */,const u_char *m_packet) /*hash tables pass*/
 {
@@ -145,7 +146,7 @@ process_tcp(u_char *userdata, const struct pcap_pkthdr *header /* header */,cons
 		get_process(connection, args->device);
 
 	}
-	g_slice_free(Packet, packet);
+	//g_slice_free(Packet, packet); remove pkt from conn
 	return 1;//just to tell that work's over
 }
 
@@ -201,10 +202,8 @@ open_pcap_handles()
 	while(count < buf.number){
 		packet_handle *new_handle = get_interface_handle(devices[count], if_error);
 		local_addr *temp;
-		if ((temp = get_device_local_addr(devices[count], interface_local_addr)) == NULL)
+		if ((temp = get_device_local_addr(devices[count])) == NULL)
 			printf("Failed to get addr for %s\n",devices[count]);
-		else
-			interface_local_addr = temp;
 		if(new_handle != NULL)
 		{	if(init_ele)
 			{
@@ -241,7 +240,7 @@ print_pcap_handles(packet_handle *handle)
 void
 print_interface_local_address()
 {
-	local_addr *temp = interface_local_addr;
+	local_addr *temp = get_local_addr_instance(NULL);
 	while(temp != NULL)
 	{
 		printf("%s : %s \n",temp->device_name,temp->ip_text);
@@ -267,12 +266,6 @@ local_addr6_contains (const struct in6_addr &n_addr, local_addr *laddr = interfa
 	if (laddr->next == NULL)
 		return false;
 	return local_addr6_contains(n_addr, laddr->next);
-}
-
-local_addr *
-get_if_local_addr()
-{
-	return interface_local_addr;
 }
 
 void
@@ -355,8 +348,3 @@ packet_dispatch(packet_handle *handle, int count, u_char *user, int size)
 	return pcap_dispatch(handle->pcap_handle, -1, packet_pcap_callback, (u_char *)handle);
 }
 
-local_addr*
-get_global_local_addr()
-{
-	return interface_local_addr;
-}

@@ -125,3 +125,25 @@ Net_process_list_get_proc(Net_process_list *plist)
 {
 	return plist->val;
 }
+
+Net_process_list *
+get_proc_list_instance(Net_process_list *val)
+{
+	static Net_process_list *temp_proc_list = NULL;
+	if (val != NULL)
+		temp_proc_list = val;
+	else if (temp_proc_list == NULL)
+		temp_proc_list = g_slice_new(Net_process_list);
+	return temp_proc_list;
+}
+
+Net_process *
+get_unknown_proc_instance(Net_process *val)
+{
+	static Net_process *temp_proc = NULL;
+	if (val != NULL)
+		temp_proc = val;
+	else if (temp_proc == NULL)
+		temp_proc = g_slice_new(Net_process);
+	return temp_proc;
+}

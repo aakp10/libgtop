@@ -4,7 +4,6 @@
 #include <glib.h>
 #include "packet.h"
 #include <sys/types.h>
-
 G_BEGIN_DECLS
 
 #define PERIOD 5
@@ -53,7 +52,9 @@ void Connection_sum_and_del(Connection *conn, timeval t, u_int64_t *recv, u_int6
 void Connection_list_setNext(Conn_list *clist,Conn_list *next_val);
 void Packet_list_init_beg(Packet_list *pktlist);
 void Packet_list_init(Packet_list *pktlist, Packet *pkt_val);
+Conn_list *get_global_connections_instance(Conn_list *val);
 //function to sum up data stats of old packets and delete them in a given connection
+
 G_END_DECLS
 
 #endif

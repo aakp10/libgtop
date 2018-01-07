@@ -5,7 +5,7 @@
 #include <arpa/inet.h>
 #include <stdlib.h>
 
-local_addr *pkt_interface_local_addr;
+//local_addr *pkt_interface_local_addr;
 
 void
 Packet_init_in_addr(Packet *pkt,in_addr pkt_sip, unsigned short pkt_sport, in_addr pkt_dip, 
@@ -65,6 +65,7 @@ is_pkt_outgoing(Packet *pkt)
 	//NOTE this req function to check all the ip of the interfaces
 	//this further requires a function to craete a global linked list of ip of the interfaces , create this in a new file
 	g_assert(get_if_local_addr() !=  NULL);
+	pkt_interface_local_addr = get_local_addr_instance(NULL);
 	switch(pkt->dir)
 	{
 	case dir_outgoing:
