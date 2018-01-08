@@ -31,9 +31,10 @@ do_refresh()
 	//test_hash_table = g_hash_table_new(g_str_hash, g_str_equal);
 	
 	char *fname = g_strdup("/proc/net/tcp");
-	glibtop_socket *socket_list = glibtop_get_netsockets (fname, test_inode_table, test_hash_table);
+	global_hashes test_hash = get_global_hashes_instance();
+	glibtop_socket *socket_list = glibtop_get_netsockets (fname, test_hash.inode_table, test_hash.hash_table);
 	g_free(fname);
-	Net_process_list *curproc = get_proc_list_instance();
+	Net_process_list *curproc = get_proc_list_instance(NULL);
 	int nproc = size(curproc);
 	stat_entry *st = (stat_entry *)calloc(nproc, sizeof(stat_entry));
 	int n = 0;
@@ -72,11 +73,11 @@ int main()
 	while(1)
 	{	
 		for(packet_handle *current_handle = handles; current_handle != NULL; current_handle = current_handle->next)
-		{	
+		{	printf("hi\n");
 			userdata->device = current_handle->device_name;
 			userdata->sa_family = AF_UNSPEC;
 			
-			if (current_handle->pcap_handle == NULL || g_strcmp0(current_handle->device_name,"lo") == 0 )
+			if (current_handle->pcap_handle == NULL || g_strcmp0(current_handle->device_name,"lo") == 0 || g_strcmp0(current_handle->device_name,"enp2s0") == 0 )
 				continue;
 			int retval = packet_dispatch(current_handle, 0, (u_char *)userdata, sizeof(packet_args))	;
 			//printf will be later changed to  gerror

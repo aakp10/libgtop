@@ -40,5 +40,5 @@ void Net_process_list_init(Net_process_list *plist, Net_process *proc, Net_proce
 Net_process *Net_process_list_get_proc(Net_process_list *plist);
 Net_process_list *get_proc_list_instance(Net_process_list *val);
 Net_process *get_unknown_proc_instance(Net_process *val);
-
+G_END_DECLS
 #endif

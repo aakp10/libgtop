@@ -19,19 +19,6 @@ char errbuf[PCAP_ERRBUF_SIZE];
 timeval curtime;
 //GHashTable *inode_table = g_hash_table_new(g_direct_hash, g_direct_equal);
 //GHashTable *hash_table = g_hash_table_new(g_str_hash, g_str_equal);
-
-void handles_set_hash(GHashTable *inode, GHashTable *hash)
-{
-	inode_table = inode;
-	hash_table = hash;
-}
-
-void handles_set_process_lists(Net_process_list *procs, Net_process *tcp)
-{
-	processes = procs;
-	unknownTCP = tcp;
-}
-
 void
 process_init()
 {
@@ -42,12 +29,6 @@ process_init()
 	Net_process_list_init(processes, unknownTCP, NULL);
 }
 
-Net_process_list*
-get_processes()
-{
-	return processes;
-}
-
 timeval
 get_curtime()
 {
@@ -55,7 +36,7 @@ get_curtime()
 }
 Net_process *get_process_from_inode(unsigned long inode, const char *device_name)
 {
-	int pid = match_pid(inode, get_global_hashes_instance().inode_table);
+	int pid = match_pid(inode);
 	Net_process_list *current = get_proc_list_instance(NULL) ;/*global list of all procs*/
 	while (current != NULL)
 	{
@@ -93,8 +74,8 @@ Net_process
 		proc = g_slice_new(Net_process);
 		Net_process_init(proc, inode,"", Packet_gethash(conn->ref_packet));
 		Net_process_list *temp = g_slice_new(Net_process_list);
-		Net_process_list_init(temp, proc, get_proc_list_instance());
-		get_global_hashes_instance(temp);	//processes = temp
+		Net_process_list_init(temp, proc, get_proc_list_instance(NULL));
+		get_proc_list_instance(temp);	//processes = temp
 	}
 	Conn_list *temp_list = g_slice_new(Conn_list);
 	Conn_list_init(temp_list, conn, proc->proc_connections);
@@ -246,26 +227,6 @@ print_interface_local_address()
 		printf("%s : %s \n",temp->device_name,temp->ip_text);
 		temp = temp->next;
 	}
-}
-
-gboolean 
-local_addr_contains (const in_addr_t &n_addr, local_addr *laddr = interface_local_addr) 
-{
-  if ((laddr->sa_family == AF_INET) && (n_addr == laddr->addr))
-    return true;
-  if (laddr->next == NULL)
-    return false;
-  return local_addr_contains(n_addr, laddr->next);
-}
-
-gboolean
-local_addr6_contains (const struct in6_addr &n_addr, local_addr *laddr = interface_local_addr)
-{
-	if ((laddr->sa_family == AF_INET6) && ((laddr->addr6).s6_addr == n_addr.s6_addr))
-		return true;
-	if (laddr->next == NULL)
-		return false;
-	return local_addr6_contains(n_addr, laddr->next);
 }
 
 void

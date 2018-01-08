@@ -64,8 +64,8 @@ is_pkt_outgoing(Packet *pkt)
 	**/
 	//NOTE this req function to check all the ip of the interfaces
 	//this further requires a function to craete a global linked list of ip of the interfaces , create this in a new file
-	g_assert(get_if_local_addr() !=  NULL);
-	pkt_interface_local_addr = get_local_addr_instance(NULL);
+	local_addr *pkt_interface_local_addr = get_local_addr_instance(NULL);
+	g_assert(pkt_interface_local_addr !=  NULL);
 	switch(pkt->dir)
 	{
 	case dir_outgoing:
@@ -179,11 +179,7 @@ Packet_gethash(Packet *pkt)
 	free(remote_string);
 	pkt->pkt_hash = g_strdup(pkt_hash);
 	printf("hash%s\n", pkt->pkt_hash);
+	if (pkt->pkt_hash != NULL)
 	return pkt->pkt_hash;
-}
-
-void
-Packet_set_global_local_addr()
-{
-	pkt_interface_local_addr = get_global_local_addr();
+	return NULL;
 }

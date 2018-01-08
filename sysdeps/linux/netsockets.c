@@ -57,7 +57,7 @@ add_socket_list(char *buf, glibtop_socket *list_socket, GHashTable *inode_table,
 		exit(0);
 	}
 
-	temp_socket->pid = match_pid(temp_socket->inode, inode_table);
+	temp_socket->pid = match_pid(temp_socket->inode);
 	glibtop_proc_state *proc_buf = g_slice_new(glibtop_proc_state);
 	glibtop_get_proc_state(proc_buf, temp_socket->pid);
 	temp_socket->proc_name = proc_buf->cmd;
@@ -142,7 +142,6 @@ get_global_hashes_instance()
 {
 	static global_hashes gh_temp = {NULL,NULL};
 	if(gh_temp.inode_table == NULL || gh_temp.hash_table == NULL)
-	{	global_hashes_init(gh_temp);
-	}
+		global_hashes_init(gh_temp);
 	return gh_temp;
 }
