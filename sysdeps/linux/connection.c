@@ -36,12 +36,14 @@ void addPacket(Packet_list *pktlist, Packet *pkt)
 		pktlist->content = pktNode;
 		return;
 	}
-	if(pktlist->content->pkt->time.tv_sec == pkt->time.tv_sec)
+	if (pktlist->content->pkt != NULL)
 	{
-		pktlist->content->pkt->len += pkt->len;
-		return;
+		if(pktlist->content->pkt->time.tv_sec == pkt->time.tv_sec)
+		{
+			pktlist->content->pkt->len += pkt->len;
+			return;
+		}
 	}
-
 	//add a new node to the list and make this new node as the content of the Packet_list
 	//currently a copy of the packet is made so that later we can delete the orginal capture
 	Packet *copy_pkt = g_slice_new(Packet);
@@ -138,7 +140,7 @@ Connection *
 find_connection_with_matching_source(Packet *pkt)
 {
 	Conn_list *current = get_global_connections_instance(NULL);
-	while (current != NULL)
+	while (current != NULL && Conn_list_get_connection(current)->ref_packet != NULL)
 	{
 		if (packet_match_source(pkt, Conn_list_get_connection(current)->ref_packet))
 			return current->conn;
@@ -152,8 +154,8 @@ Connection *
 find_connection_with_matching_ref_packet_or_source(Packet *pkt)
 {
 	Conn_list *current = get_global_connections_instance(NULL);
-	while (current != NULL)
-	{
+	while (current != NULL && Conn_list_get_connection(current)->ref_packet != NULL)
+	{	
 		if (packet_match(pkt, Conn_list_get_connection(current)->ref_packet))
 			return current->conn;
 		current = current->next;
@@ -194,7 +196,7 @@ u_int64_t Packet_list_sum_and_del(Packet_list *pktlist, timeval t)
 				pktlist->content = NULL;
 			else if (previous != NULL)
 				previous->next = NULL;
-			g_slice_free(Packet_list_node, current);
+			//g_slice_free(Packet_list_node, current);
 			return sum;
 		}
 		sum += current->pkt->len;

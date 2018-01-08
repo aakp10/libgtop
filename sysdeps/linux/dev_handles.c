@@ -5,6 +5,7 @@
 #include "packet.h"
 #include <netinet/tcp.h>
 #include <netinet/ip.h>
+#include <netinet/ip6.h>
 #include <sys/time.h>
 #include "interface_local_addr.h"
 #include "connection.h"
@@ -64,7 +65,7 @@ Net_process
 			get_unknown_proc_instance(NULL)->proc_connections = temp; //assigning this connection to unknown TCP 
 			return get_unknown_proc_instance(NULL);
 		}
-		g_slice_free(Packet, conn->ref_packet);
+		//g_slice_free(Packet, conn->ref_packet);
 		conn->ref_packet = reverse_pkt;
 	}
 	/*this proc is present in the hash table*/
@@ -262,22 +263,46 @@ packet_parse_ip(packet_handle *handle, const struct pcap_pkthdr *hdr, const u_ch
 	}
 }
 
+void packet_parse_ip6(packet_handle *handle, const struct pcap_pkthdr *hdr, const u_char *pkt)
+{
+	const struct ip6_hdr *ip6 = (struct ip6_hdr *)pkt;
+	u_char *payload = (u_char *)pkt + sizeof(struct ip6_hdr);
+
+/*	if (handle->callback[dp_packet_ip6] != NULL) {
+int done =
+(handle->callback[dp_packet_ip6])(handle->userdata, header, packet);
+if (done)
+return;
+}*/
+	switch ((ip6->ip6_ctlun).ip6_un1.ip6_un1_nxt) 
+	{
+	case IPPROTO_TCP:
+		packet_parse_tcp(handle, hdr, payload);
+		break;
+	default:
+	// TODO: maybe support for non-tcp ipv6 packets
+	break;
+	}
+}
+
 void
 packet_parse_ethernet(packet_handle * handle, const struct pcap_pkthdr *hdr, const u_char *pkt)
 {
 	const struct ether_header *ethernet = (struct ether_header *)pkt;
 	u_char *payload = (u_char *)pkt + sizeof(struct ether_header);	
+	printf("parse ethernet\n");
 	switch (ntohs(ethernet->ether_type)) 
 	{
 	case ETHERTYPE_IP:
  		printf("ethertype ip exec");
 		packet_parse_ip(handle, hdr, payload);
 		break;
-	/*case ETHERTYPE_IPV6:
-		printf("ethertype ip exec");
-		//dp_parse_ip6(handle, header, payload);
+
+	case ETHERTYPE_IPV6:
+		printf("ethertype ipv6 exec");
+		packet_parse_ip6(handle, hdr, payload);
 		break;
-	*/
+	
 	}
 }
 
