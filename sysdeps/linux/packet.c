@@ -19,6 +19,16 @@ Packet_init_in_addr(Packet *pkt,in_addr pkt_sip, unsigned short pkt_sport, in_ad
 	pkt->len = pkt_len;
 	pkt->time = pkt_ts;
 	pkt->dir = pkt_dir;
+	pkt->pkt_hash = NULL;
+	char pkt_hash[92];
+	char *local_string = (char *)malloc(50);
+	char *remote_string = (char *)malloc(50);
+	inet_ntop(pkt->sa_family, &(pkt->sip), local_string, sizeof(local_string));
+	inet_ntop(pkt->sa_family, &(pkt->dip), remote_string, sizeof(remote_string));
+	printf("%s:%d-%s:%d\n",local_string,pkt_sport,remote_string,pkt_dport );
+	free(local_string);
+	free(remote_string);
+	printf("");
 }
 
 void
@@ -33,6 +43,7 @@ Packet_init_in6_addr(Packet *pkt,in6_addr pkt_sip6, unsigned short pkt_sport, in
 	pkt->len = pkt_len;
 	pkt->time = pkt_ts;
 	pkt->dir = pkt_dir;
+	pkt->pkt_hash = NULL;
 }
 void
 Packet_init(Packet *pkt, Packet &old_packet)
@@ -47,6 +58,7 @@ Packet_init(Packet *pkt, Packet &old_packet)
 	pkt->len = old_packet.len;
 	pkt->time = old_packet.time;
 	pkt->dir = old_packet.dir;
+	pkt->pkt_hash = old_packet.pkt_hash;
 	//hash for matching the process is not yet implemented
 }
 
@@ -140,12 +152,11 @@ get_inverted_packet(Packet *pkt)
 	Packet *inverted_packet = g_slice_new (Packet);
 	if (pkt->sa_family == AF_INET)
 		Packet_init_in_addr(inverted_packet, pkt->sip, pkt->sport, pkt->dip, pkt->dport, 
-							pkt->len, pkt->time , inverted_dir);
+							pkt->len, pkt->time, inverted_dir);
 	else
 		Packet_init_in6_addr(inverted_packet, pkt->sip6, pkt->sport, pkt->dip6, pkt->dport,
 							pkt->len, pkt->time, inverted_dir);
 	return inverted_packet; 
-		
 }
 
 char *
@@ -154,31 +165,32 @@ Packet_gethash(Packet *pkt)
 	if (pkt->pkt_hash != NULL)
 	{
 		return pkt->pkt_hash;
-	}
+	}	
 
 	//free pkt_hash
 	char pkt_hash[92];
-	char *local_string = (char *)malloc(50);
-	char *remote_string = (char *)malloc(50);
+	char local_string[128];
+	char remote_string[128];
 	if (pkt->sa_family == AF_INET)
-	 {
-		inet_ntop(pkt->sa_family, &(pkt->sip), local_string, 49);
-		inet_ntop(pkt->sa_family, &(pkt->dip), remote_string, 49);
-	} else 
 	{
-		inet_ntop(pkt->sa_family, &(pkt->sip6), local_string, 49);
-		inet_ntop(pkt->sa_family, &(pkt->dip6), remote_string, 49);
+		inet_ntop(pkt->sa_family, &(pkt->sip), local_string, 16);
+		inet_ntop(pkt->sa_family, &(pkt->dip), remote_string, 16);
+	}
+	else 
+	{
+		inet_ntop(pkt->sa_family, &(pkt->sip6), local_string, 46);
+		inet_ntop(pkt->sa_family, &(pkt->dip6), remote_string, 46);
 	}
 	if (is_pkt_outgoing(pkt))
 		snprintf(pkt_hash, HASHKEYSIZE*sizeof(char), "%s:%d-%s:%d",
-				local_string, pkt->sport, pkt->dip, remote_string);
+				local_string, pkt->sport, remote_string, pkt->dport);
 	else
 		snprintf(pkt_hash, HASHKEYSIZE*sizeof(char), "%s:%d-%s:%d",
 				remote_string, pkt->dport, local_string, pkt->sport);
-	free(local_string);
-	free(remote_string);
+	
 	pkt->pkt_hash = g_strdup(pkt_hash);
-	printf("hash%s\n", pkt->pkt_hash);
+	printf("hash %s:%d-%s:%d\n", local_string, pkt->sport, remote_string, pkt->dport);
+
 	if (pkt->pkt_hash != NULL)
 	return pkt->pkt_hash;
 	return NULL;

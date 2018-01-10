@@ -16,10 +16,13 @@ static time_t last_refresh_time = 0;
 
 int 
 size(Net_process_list *plist)
-{
+{	
 	int i = 1;
-	if (plist->next != NULL)
-		i += size(plist->next);
+	if (plist != NULL && plist->val != NULL)
+		{
+			printf("name:%s\n",plist->val->proc_name );
+			i += size(plist->next);
+		}
 	return i;
 }
 
@@ -35,7 +38,9 @@ do_refresh()
 	glibtop_socket *socket_list = glibtop_get_netsockets (fname, test_hash.inode_table, test_hash.hash_table);
 	g_free(fname);
 	Net_process_list *curproc = get_proc_list_instance(NULL);
+	printf("PROCESS NAME\n");
 	int nproc = size(curproc);
+	printf("no of proc:%d",nproc);
 	stat_entry *st = (stat_entry *)calloc(nproc, sizeof(stat_entry));
 	int n = 0;
 	while(curproc != NULL)
@@ -43,7 +48,11 @@ do_refresh()
 		g_assert(Net_process_list_get_proc(curproc) != NULL);
 		float value_sent = 0;
 		float value_recv = 0;
-		Net_process_get_kbps(Net_process_list_get_proc(curproc), &value_recv, &value_sent, get_curtime());
+		timeval t;
+		t.tv_sec = 0;
+		t = get_curtime(t);
+		printf("curtime:%ld\n",t.tv_sec );
+		Net_process_get_kbps(Net_process_list_get_proc(curproc), &value_recv, &value_sent, t);
 		uid_t uid = Net_process_list_get_proc(curproc)->uid;
 		stat_init(&st[n], Net_process_list_get_proc(curproc)->proc_name,
 						Net_process_list_get_proc(curproc)->device_name,
@@ -55,6 +64,7 @@ do_refresh()
 		n++;
 	}
 	print_stat(st, nproc);
+
 }
 
 int main()
@@ -73,7 +83,7 @@ int main()
 	while(1)
 	{	
 		for(packet_handle *current_handle = handles; current_handle != NULL; current_handle = current_handle->next)
-		{	printf("hi\n");
+		{	
 			userdata->device = current_handle->device_name;
 			userdata->sa_family = AF_UNSPEC;
 			
@@ -84,7 +94,7 @@ int main()
 			if (retval < 0)
 				printf("Error dispatching for device %s \n ", current_handle->device_name);
 		}
-		printf("Refreshing");
+		//printf("Refreshing");
 		time_t const now = time(NULL);
 		if (last_refresh_time + refresh_delay <= now)
 		{	

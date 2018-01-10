@@ -53,7 +53,7 @@ void print_pcap_handles(packet_handle *handle);
 void print_interface_local_address();
 local_addr *get_if_local_addr();
 int packet_dispatch(packet_handle *handle, int count, u_char *user, int size);
-timeval get_curtime();
+timeval get_curtime(timeval val );
 local_addr* get_global_local_addr();
 void handles_set_hash(GHashTable *inode, GHashTable *hash);
 void handles_set_process_lists(Net_process_list *procs, Net_process *tcp);

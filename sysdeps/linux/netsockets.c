@@ -76,27 +76,28 @@ add_socket_list(char *buf, glibtop_socket *list_socket, GHashTable *inode_table,
 					&((temp_socket->rem_addr)->s6_addr32[3]));
 		temp_socket->sa_family = AF_INET6;
 	//	snprintf(temp_hash, HASHKEYSIZE * sizeof(char), "%s:%d-%s:%d", temp_local_addr, temp_socket->local_port, temp_rem_addr, temp_socket->rem_port);
-		char lip[128];
-		char rip[128];
+		char lip[50];
+		char rip[50];
 		inet_ntop(AF_INET6, temp_local_addr, lip, sizeof(lip));
 		inet_ntop(AF_INET6,temp_rem_addr, rip, sizeof(rip));
 		snprintf(temp_hash, HASHKEYSIZE * sizeof(char), "%s:%d-%s:%d", lip, temp_socket->local_port, rip, temp_socket->rem_port);
 
 	}
 	else//it is IPv4
-	{	
-			sscanf(temp_local_addr, "%X", (unsigned int *)&(*(temp_socket->local_addr)));
-			sscanf(temp_rem_addr, "%X", (unsigned int *)&(*(temp_socket->rem_addr)));
-			temp_socket->sa_family = AF_INET;
-			char lip[128];
-			char rip[128];
-			inet_ntop(AF_INET, temp_local_addr, lip, sizeof(lip));
-			inet_ntop(AF_INET,temp_rem_addr, rip, sizeof(rip));
-			snprintf(temp_hash, HASHKEYSIZE * sizeof(char), "%s:%d-%s:%d", lip, temp_socket->local_port, rip, temp_socket->rem_port);
+	{		
+		sscanf(temp_local_addr, "%X", (unsigned int *)&(*(temp_socket->local_addr)));
+		sscanf(temp_rem_addr, "%X", (unsigned int *)&(*(temp_socket->rem_addr)));
+		temp_socket->sa_family = AF_INET;
+		char lip[128];
+		char rip[128];
+		inet_ntop(AF_INET, &(*(temp_socket->local_addr)), lip, sizeof(lip));
+		inet_ntop(AF_INET, &(*(temp_socket->rem_addr)), rip, sizeof(rip));
+		snprintf(temp_hash, HASHKEYSIZE * sizeof(char), "%s:%d-%s:%d", lip, temp_socket->local_port, rip, temp_socket->rem_port);
 	
 	}
 	//check for malloc
 	temp_socket->sock_hash = g_strdup(temp_hash);
+	printf("hash:%s inode:%d\n",temp_socket->sock_hash,temp_socket->inode);
 	g_hash_table_insert(hash_table, temp_socket->sock_hash, GINT_TO_POINTER(temp_socket->inode));
 	temp_socket->next = NULL;
 	return temp_socket;

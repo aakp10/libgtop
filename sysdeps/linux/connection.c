@@ -1,5 +1,6 @@
 #include "connection.h"
 #include "packet.h"
+#include <stdio.h>
 //global list of all connections being monitored
 //Conn_list *connections;
 //initializer for packet list node
@@ -54,8 +55,9 @@ void addPacket(Packet_list *pktlist, Packet *pkt)
 }
 
 //this packet to get the time of the last pcket capture for th given connection
-void add_packet_to_connection(Connection *conn, Packet *pkt)
-{
+void 
+add_packet_to_connection(Connection *conn, Packet *pkt)
+{	printf("ADDING\n");
 	conn->last_packet_time = pkt->time.tv_sec;
 	//if outgoing or incoming accordingly add the packet to respective packet list sent or recv i.e malloc a new 
 	if(is_pkt_outgoing(pkt)) //check packet.c
@@ -102,7 +104,10 @@ get_global_connections_instance(Conn_list *val)
 	if (val != NULL)
 		global_connections_list = val;
 	else if (global_connections_list == NULL)
-		global_connections_list = g_slice_new(Conn_list);
+		{
+			global_connections_list = g_slice_new(Conn_list);
+			Conn_list_init(global_connections_list, NULL, NULL);
+		}
 	return global_connections_list;
 }
 
@@ -119,28 +124,31 @@ Connection_init(Connection *conn, Packet *pkt)
 	Packet_list_init_beg(conn->sent_packets);
 	conn->bytes_sent = 0;
 	conn->bytes_recv = 0;
-
+	printf("new conn w/ pkt len = %d\n", pkt->len );
 	if (is_pkt_outgoing(pkt))
 	{
 		conn->bytes_sent += pkt->len;
 		addPacket(conn->sent_packets, pkt);
 		conn->ref_packet = g_slice_new(Packet);
 		Packet_init(conn->ref_packet, *pkt);
+			printf("New reference packet created at %d: \n",conn->ref_packet->sport );
 	}
 	else
 	{
 		conn->bytes_recv += pkt->len;
 		addPacket(conn->received_packets, pkt);
 		conn->ref_packet = get_inverted_packet(pkt);
+		printf("New reference packet created at %d:\n",conn->ref_packet->sport );
 	}
 	conn->last_packet_time = pkt->time.tv_sec;
+	
 }
 
 Connection *
 find_connection_with_matching_source(Packet *pkt)
-{
+{	printf("SOURCE ONLY");
 	Conn_list *current = get_global_connections_instance(NULL);
-	while (current != NULL && Conn_list_get_connection(current)->ref_packet != NULL)
+	while (current->conn != NULL)
 	{
 		if (packet_match_source(pkt, Conn_list_get_connection(current)->ref_packet))
 			return current->conn;
@@ -148,13 +156,23 @@ find_connection_with_matching_source(Packet *pkt)
 	}
 	return NULL;
 }
-
+void 
+print_global_connection_list()
+{	printf("CONNECTION LIST\n");
+	Conn_list *current = get_global_connections_instance(NULL);
+	while (current->conn != NULL)
+	{
+		printf("bytes_recv:%d %d\n",current->conn->bytes_recv, current->conn->ref_packet->dport);
+		current = current->next;
+	}
+}
 
 Connection *
 find_connection_with_matching_ref_packet_or_source(Packet *pkt)
 {
 	Conn_list *current = get_global_connections_instance(NULL);
-	while (current != NULL && Conn_list_get_connection(current)->ref_packet != NULL)
+	print_global_connection_list();
+	while (current->conn != NULL)
 	{	
 		if (packet_match(pkt, Conn_list_get_connection(current)->ref_packet))
 			return current->conn;
@@ -173,6 +191,8 @@ find_connection(Packet *pkt)
 		Packet *inverted_packet = get_inverted_packet(pkt);
 		Connection *result = find_connection_with_matching_ref_packet_or_source(inverted_packet);
 		g_slice_free(Packet, inverted_packet);
+		if(result != NULL)
+		printf("MATCHED CONN %d %d\n",result->ref_packet->sport,pkt->sport );
 		return result;
 	}
 }
@@ -186,17 +206,18 @@ Connection_get_last_packet_time(Connection *conn)
 u_int64_t Packet_list_sum_and_del(Packet_list *pktlist, timeval t)
 {
 	u_int64_t sum = 0;
+	int i=0;
 	Packet_list_node *current = pktlist->content;
 	Packet_list_node *previous ;
 	while (current != NULL)
-	{
+	{	
 		if (current->pkt->time.tv_sec <= t.tv_sec - PERIOD)
-		{
+		{ printf("%d:len%d.....",i++,current->pkt->sport);
 			if (current == pktlist->content)
 				pktlist->content = NULL;
 			else if (previous != NULL)
 				previous->next = NULL;
-			//g_slice_free(Packet_list_node, current);
+			g_slice_free(Packet_list_node, current);
 			return sum;
 		}
 		sum += current->pkt->len;

@@ -13,11 +13,12 @@
 #include "netsockets.h"
 #include <glib.h>
 #include <net/ethernet.h>
+#include <arpa/inet.h>
 /*GLOBAL HASH TABLE */
 //local_addr *interface_local_addr;
 int promisc = 0;
 char errbuf[PCAP_ERRBUF_SIZE];
-timeval curtime;
+
 //GHashTable *inode_table = g_hash_table_new(g_direct_hash, g_direct_equal);
 //GHashTable *hash_table = g_hash_table_new(g_str_hash, g_str_equal);
 void
@@ -30,9 +31,11 @@ process_init()
 	Net_process_list_init(processes, unknownTCP, NULL);
 }
 
-timeval
-get_curtime()
-{
+timeval 
+get_curtime(timeval val)
+{	static timeval curtime ;
+	if(val.tv_sec)
+		curtime = val;
 	return curtime;
 }
 Net_process *get_process_from_inode(unsigned long inode, const char *device_name)
@@ -50,12 +53,12 @@ Net_process *get_process_from_inode(unsigned long inode, const char *device_name
 	return NULL;
 }
 
-Net_process 
-*get_process(Connection *conn, const char *device_name)
+Net_process * 
+get_process(Connection *conn, const char *device_name)
 {
 	unsigned long inode = match_hash_to_inode(Packet_gethash(conn->ref_packet));
 	if (inode == -1)
-	{
+	{	printf("Unknown PROC\n");
 		Packet *reverse_pkt = get_inverted_packet(conn->ref_packet);
 		inode = match_hash_to_inode(Packet_gethash(reverse_pkt));
 		if (inode == -1)
@@ -86,15 +89,26 @@ Net_process
 }
 
 int 
-process_ip(u_char *userdata, const struct pcap_pkthdr * /* header */,const u_char *m_packet) /*hash tables pass*/
+process_ip(u_char *userdata, const struct pcap_pkthdr *header /* header */,const u_char *m_packet) /*hash tables pass*/
 {
-	/*TWIP*/
+	packet_args *args = (packet_args *)userdata;
+	struct ip *ip4 = (struct ip *)m_packet;
+	args->sa_family = AF_INET;
+	args->ip_src = ip4->ip_src;
+	args->ip_dst = ip4->ip_dst;
+	printf("sa family:%d \n",args->sa_family );
+
+	/* we're not done yet - also parse tcp */
 	return 0;
 }
 int 
-process_ip6(u_char *userdata, const struct pcap_pkthdr * /* header */,const u_char *m_packet) /*hash tables pass*/ 
+process_ip6(u_char *userdata, const struct pcap_pkthdr *header /* header */,const u_char *m_packet) /*hash tables pass*/ 
 {
-	/*WIP*/
+	packet_args *args = (packet_args *)userdata;
+	const struct ip6_hdr *ip6 = (struct ip6_hdr *)m_packet;
+	args->sa_family = AF_INET6;
+	args->ip6_src = ip6->ip6_src;
+	args->ip6_dst = ip6->ip6_dst;
 	return 0;
 }
 int 
@@ -102,31 +116,48 @@ process_tcp(u_char *userdata, const struct pcap_pkthdr *header /* header */,cons
 {	/*WIP*/
 	packet_args *args = (packet_args *)userdata;
 	struct tcphdr *tcp = (struct tcphdr *)m_packet;
-
-	curtime = header->ts;
+	timeval cur = header->ts;
+	get_curtime(header->ts);
 	Packet *packet = g_slice_new(Packet);
+
+	char *local_string = (char *)malloc(128);
+	char *remote_string = (char *)malloc(128);
 	switch(args->sa_family)
 	{
 	case AF_INET:
+		printf("LOOKING at packet sip%s :%d-dip%s:%d\n",inet_ntoa(args->ip_src),ntohs(tcp->th_sport),inet_ntoa(args->ip_dst),ntohs(tcp->th_sport));
 		Packet_init_in_addr(packet, args->ip_src, ntohs(tcp->th_sport), args->ip_dst, ntohs(tcp->th_dport), header->len, header->ts);
+		//printf("src:%s dest:%s\n",args->ip_src,args->ip_dst);
 		break;
 
 	case AF_INET6:
+		//printf("LOOKING at packet sip%s :%d-dip%s:%d\n",inet_ntoa(args->ip6_src),ntohs(tcp->th_sport),inet_ntoa(args->ip6_dst),ntohs(tcp->th_sport));
 		Packet_init_in6_addr(packet, args->ip6_src, ntohs(tcp->th_sport), args->ip6_dst, ntohs(tcp->th_dport), header->len, header->ts);
+		inet_ntop(AF_INET6,  &args->ip6_src, local_string, 46);
+		inet_ntop(AF_INET6, &args->ip6_dst, remote_string, 46);
+		printf("src:%s dest:%s\n",args->ip6_src,args->ip6_dst);
+		printf("src:%s dest:%s\n",local_string,remote_string );
+		free(local_string);
+		free(remote_string);
 		break;
+	default:
+		printf("invalid family\n");
+		packet = NULL;
 	}
-
-	Connection *connection = find_connection(packet);
-	if (connection != NULL)
-		add_packet_to_connection(connection, packet);
-	else
+	if(packet != NULL)
 	{
-		Connection *connection = g_slice_new(Connection);
-		Connection_init(connection, packet);
-		//Add this connection to a connectionlist depending on the process it belongs to
-		//write this 
-		get_process(connection, args->device);
+		Connection *connection = find_connection(packet);
+		if (connection != NULL)
+			add_packet_to_connection(connection, packet);
+		else
+		{	printf("NEW PROC \n");
+			Connection *connection = g_slice_new(Connection);
+			Connection_init(connection, packet);
+			//Add this connection to a connectionlist depending on the process it belongs to
+			//write this 
+			get_process(connection, args->device);
 
+		}
 	}
 	//g_slice_free(Packet, packet); remove pkt from conn
 	return 1;//just to tell that work's over
@@ -195,6 +226,8 @@ open_pcap_handles()
 			add_callback(new_handle, packet_ip, process_ip);
 			add_callback(new_handle, packet_ip6, process_ip6);
 			add_callback(new_handle, packet_tcp, process_tcp);
+			if(pcap_setnonblock(new_handle->pcap_handle, 1, errbuf) == -1)
+				printf("failed to set to non blocking mode %s\n",devices[count]);
 			if(previous_handle != NULL)
 				previous_handle->next = new_handle;
 			previous_handle = new_handle;
@@ -223,7 +256,7 @@ void
 print_interface_local_address()
 {
 	local_addr *temp = get_local_addr_instance(NULL);
-	while(temp != NULL)
+	while(temp != NULL && temp->device_name != NULL)
 	{
 		printf("%s : %s \n",temp->device_name,temp->ip_text);
 		temp = temp->next;
@@ -244,13 +277,15 @@ void
 packet_parse_ip(packet_handle *handle, const struct pcap_pkthdr *hdr, const u_char *pkt)
 {
 	const struct ip *ip_packet = (struct ip *)pkt;
+	printf("Looking at packet with length %d \n", hdr->len);
 	//check
-	//u_char *payload = (u_char *)packet + sizeof(struct ip);
-	/*if (handle->callback[packet_ip] != NULL)
-	{	//write this
+	u_char *payload = (u_char *)pkt + sizeof(struct ip);
+	if (handle->callback[packet_ip] != NULL)
+	{	
 		if(handle->callback[packet_ip](handle->userdata, hdr, pkt))
 			return ;
-	}*/
+	}
+
 	switch(ip_packet->ip_p)
 	{
 		case IPPROTO_TCP:
@@ -268,12 +303,11 @@ void packet_parse_ip6(packet_handle *handle, const struct pcap_pkthdr *hdr, cons
 	const struct ip6_hdr *ip6 = (struct ip6_hdr *)pkt;
 	u_char *payload = (u_char *)pkt + sizeof(struct ip6_hdr);
 
-/*	if (handle->callback[dp_packet_ip6] != NULL) {
-int done =
-(handle->callback[dp_packet_ip6])(handle->userdata, header, packet);
-if (done)
-return;
-}*/
+	if (handle->callback[packet_ip6] != NULL) 
+	{
+		if (handle->callback[packet_ip6])(handle->userdata, hdr, pkt);
+			return;
+	}
 	switch ((ip6->ip6_ctlun).ip6_un1.ip6_un1_nxt) 
 	{
 	case IPPROTO_TCP:
@@ -289,7 +323,7 @@ void
 packet_parse_ethernet(packet_handle * handle, const struct pcap_pkthdr *hdr, const u_char *pkt)
 {
 	const struct ether_header *ethernet = (struct ether_header *)pkt;
-	u_char *payload = (u_char *)pkt + sizeof(struct ether_header);	
+	u_char *payload = (u_char *)(pkt +14);	
 	printf("parse ethernet\n");
 	switch (ntohs(ethernet->ether_type)) 
 	{

@@ -33,10 +33,10 @@ local_addr6_init(local_addr *laddr, struct in6_addr addr6_value, const char *dev
 
 gboolean
 local_addr_contains(local_addr *laddr, const in_addr_t &n_addr)
-{
+{	
 	if((laddr->sa_family == AF_INET) && (laddr->addr == n_addr))
 		return true;
-	if(laddr->next != NULL)
+	if(laddr->next != NULL && laddr->device_name != NULL)
 		return local_addr_contains(laddr->next, n_addr);
 	return false;
 }
@@ -46,7 +46,7 @@ local_addr6_contains(local_addr *laddr, const struct in6_addr &n_addr)
 {
 	if (((laddr->sa_family) == AF_INET) && ((laddr->addr6).s6_addr == n_addr.s6_addr))  //CHECK THIS
 		return true;
-	if(laddr->next != NULL)
+	if(laddr->next != NULL && laddr->device_name != NULL)
 		return local_addr6_contains(laddr->next, n_addr);
 	return false;
 }
@@ -97,6 +97,9 @@ get_local_addr_instance(local_addr *val)
 	if (val != NULL)
 		temp_if_addr = val;
 	else if (temp_if_addr == NULL)
-		temp_if_addr = g_slice_new(local_addr);
+		{
+			temp_if_addr = g_slice_new(local_addr);
+			temp_if_addr->device_name = NULL;
+		}
 	return temp_if_addr;
 }
