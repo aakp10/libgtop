@@ -125,10 +125,10 @@ process_tcp(u_char *userdata, const struct pcap_pkthdr *header /* header */,cons
 	switch(args->sa_family)
 	{
 	case AF_INET:
-		printf("LOOKING at packet sip%s :%d-dip%s:%d\n",inet_ntoa(args->ip_src),ntohs(tcp->th_sport),inet_ntoa(args->ip_dst),ntohs(tcp->th_sport));
+		//printf("LOOKING at packet sip%s :%d-dip%s:%d\n",inet_ntoa(args->ip_src),ntohs(tcp->th_sport),inet_ntoa(args->ip_dst),ntohs(tcp->th_sport));
 		Packet_init_in_addr(packet, args->ip_src, ntohs(tcp->th_sport), args->ip_dst, ntohs(tcp->th_dport), header->len, header->ts);
 		//printf("src:%s dest:%s\n",args->ip_src,args->ip_dst);
-		break;
+			break;
 
 	case AF_INET6:
 		//printf("LOOKING at packet sip%s :%d-dip%s:%d\n",inet_ntoa(args->ip6_src),ntohs(tcp->th_sport),inet_ntoa(args->ip6_dst),ntohs(tcp->th_sport));
@@ -227,6 +227,7 @@ open_pcap_handles()
 			add_callback(new_handle, packet_ip6, process_ip6);
 			add_callback(new_handle, packet_tcp, process_tcp);
 			if(pcap_setnonblock(new_handle->pcap_handle, 1, errbuf) == -1)
+			
 				printf("failed to set to non blocking mode %s\n",devices[count]);
 			if(previous_handle != NULL)
 				previous_handle->next = new_handle;

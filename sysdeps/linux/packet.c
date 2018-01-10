@@ -21,14 +21,12 @@ Packet_init_in_addr(Packet *pkt,in_addr pkt_sip, unsigned short pkt_sport, in_ad
 	pkt->dir = pkt_dir;
 	pkt->pkt_hash = NULL;
 	char pkt_hash[92];
-	char *local_string = (char *)malloc(50);
-	char *remote_string = (char *)malloc(50);
-	inet_ntop(pkt->sa_family, &(pkt->sip), local_string, sizeof(local_string));
-	inet_ntop(pkt->sa_family, &(pkt->dip), remote_string, sizeof(remote_string));
-	printf("%s:%d-%s:%d\n",local_string,pkt_sport,remote_string,pkt_dport );
-	free(local_string);
-	free(remote_string);
-	printf("");
+	char local_string[128];
+	char remote_string[128];
+	inet_ntop(pkt->sa_family, &(pkt->sip), local_string, 16);
+	inet_ntop(pkt->sa_family, &(pkt->dip), remote_string, 16);
+	printf("Packet init%s:%d-%s:%d\n",local_string,pkt_sport,remote_string,pkt_dport );
+		printf("");
 }
 
 void

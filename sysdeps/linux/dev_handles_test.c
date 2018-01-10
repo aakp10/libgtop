@@ -18,7 +18,7 @@ int
 size(Net_process_list *plist)
 {	
 	int i = 1;
-	if (plist != NULL && plist->val != NULL)
+	if (plist != NULL)
 		{
 			printf("name:%s\n",plist->val->proc_name );
 			i += size(plist->next);

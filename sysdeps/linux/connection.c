@@ -131,7 +131,7 @@ Connection_init(Connection *conn, Packet *pkt)
 		addPacket(conn->sent_packets, pkt);
 		conn->ref_packet = g_slice_new(Packet);
 		Packet_init(conn->ref_packet, *pkt);
-			printf("New reference packet created at %d: \n",conn->ref_packet->sport );
+		printf("New reference packet created at %d: \n",conn->ref_packet->sport );
 	}
 	else
 	{
@@ -209,10 +209,10 @@ u_int64_t Packet_list_sum_and_del(Packet_list *pktlist, timeval t)
 	int i=0;
 	Packet_list_node *current = pktlist->content;
 	Packet_list_node *previous ;
-	while (current != NULL)
-	{	
+	while (current != NULL && previous == current)
+	{	//printf("%d:len%d.....",i++,current->pkt->sport);
 		if (current->pkt->time.tv_sec <= t.tv_sec - PERIOD)
-		{ printf("%d:len%d.....",i++,current->pkt->sport);
+		{ 
 			if (current == pktlist->content)
 				pktlist->content = NULL;
 			else if (previous != NULL)
