@@ -47,6 +47,7 @@ void addPacket(Packet_list *pktlist, Packet *pkt)
 	}
 	//add a new node to the list and make this new node as the content of the Packet_list
 	//currently a copy of the packet is made so that later we can delete the orginal capture
+	printf("Packet added to existing packetlist");
 	Packet *copy_pkt = g_slice_new(Packet);
 	Packet_init(copy_pkt,*pkt);
 	Packet_list_node *pktNode = g_slice_new(Packet_list_node);
@@ -157,12 +158,32 @@ find_connection_with_matching_source(Packet *pkt)
 	return NULL;
 }
 void 
+print_packet_list(Connection *conn)
+{	int i =1;
+	Packet_list_node *sent_packets = conn->sent_packets->content;
+	Packet_list_node *received_packets = conn->received_packets->content;
+	printf("SENT PACKETS\n");
+	while(sent_packets != NULL)
+	{
+		printf("%d. %dbytes\n",i++,sent_packets->pkt->len);
+		sent_packets = sent_packets->next;
+	}
+	printf("received_packets\n");
+	while(received_packets != NULL)
+	{
+		printf("%d. %dbytes\n",i++,received_packets->pkt->len);
+		received_packets = received_packets->next;
+	}
+
+}
+void 
 print_global_connection_list()
 {	printf("CONNECTION LIST\n");
 	Conn_list *current = get_global_connections_instance(NULL);
 	while (current->conn != NULL)
 	{
-		printf("bytes_recv:%d %d\n",current->conn->bytes_recv, current->conn->ref_packet->dport);
+		printf("bytes_recv:%d from%d bytes sent %d sent %d\n",current->conn->bytes_recv, current->conn->ref_packet->sport, current->conn->bytes_sent, current->conn->ref_packet->dport);
+		print_packet_list(current->conn);
 		current = current->next;
 	}
 }
@@ -192,7 +213,7 @@ find_connection(Packet *pkt)
 		Connection *result = find_connection_with_matching_ref_packet_or_source(inverted_packet);
 		g_slice_free(Packet, inverted_packet);
 		if(result != NULL)
-		printf("MATCHED CONN %d %d\n",result->ref_packet->sport,pkt->sport );
+		printf("MATCHED CONN %d-%d\n", result->ref_packet->sport, result->ref_packet->dport);
 		return result;
 	}
 }
@@ -208,29 +229,38 @@ u_int64_t Packet_list_sum_and_del(Packet_list *pktlist, timeval t)
 	u_int64_t sum = 0;
 	int i=0;
 	Packet_list_node *current = pktlist->content;
-	Packet_list_node *previous ;
-	while (current != NULL && previous == current)
+	Packet_list_node *previous = NULL;
+	while (current != NULL && previous != current)
 	{	//printf("%d:len%d.....",i++,current->pkt->sport);
-		if (current->pkt->time.tv_sec <= t.tv_sec - PERIOD)
+		/*if (current->pkt->time.tv_sec <= t.tv_sec - PERIOD)
 		{ 
 			if (current == pktlist->content)
 				pktlist->content = NULL;
 			else if (previous != NULL)
 				previous->next = NULL;
-			g_slice_free(Packet_list_node, current);
+			//g_slice_free(Packet_list_node, current);
 			return sum;
-		}
+		}*/
+			printf("%d. %dbytes\n",i++,current->pkt->len);
 		sum += current->pkt->len;
 		previous = current;
+	//	printf("bytes:%d\n",sum);
 		current = current->next;
 	}
+	printf("sum is %d: \n",sum);
 	return sum;
 }
+
 void
-Connection_sum_and_del(Connection *conn, timeval t, u_int64_t *recv, u_int64_t *sent)
+Connection_sum_and_del(Connection *conn, timeval t, u_int64_t &recv, u_int64_t &sent)
 {
-	*sent = 0;
-	*recv = 0;
-	*sent = Packet_list_sum_and_del(conn->sent_packets, t);
-	*recv = Packet_list_sum_and_del(conn->received_packets, t);
+ 	sent = 0;
+	recv = 0;
+	if(conn->sent_packets->content == NULL)
+		printf("null packet list\n");
+	printf("sent list sum \n");
+	sent = Packet_list_sum_and_del(conn->sent_packets, t);
+//	printf("sum is %d:",*sent);
+	printf("recv list sum\n");
+	recv = Packet_list_sum_and_del(conn->received_packets, t);
 }

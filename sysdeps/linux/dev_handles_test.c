@@ -52,7 +52,7 @@ do_refresh()
 		t.tv_sec = 0;
 		t = get_curtime(t);
 		printf("curtime:%ld\n",t.tv_sec );
-		Net_process_get_kbps(Net_process_list_get_proc(curproc), &value_recv, &value_sent, t);
+		Net_process_get_kbps(Net_process_list_get_proc(curproc), value_recv, value_sent, t);
 		uid_t uid = Net_process_list_get_proc(curproc)->uid;
 		stat_init(&st[n], Net_process_list_get_proc(curproc)->proc_name,
 						Net_process_list_get_proc(curproc)->device_name,

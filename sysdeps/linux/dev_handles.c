@@ -14,10 +14,71 @@
 #include <glib.h>
 #include <net/ethernet.h>
 #include <arpa/inet.h>
+#include <glibtop/procstate.h>
 /*GLOBAL HASH TABLE */
 //local_addr *interface_local_addr;
+	int size_ip;
+	int size_tcp;
 int promisc = 0;
 char errbuf[PCAP_ERRBUF_SIZE];
+/* default snap length (maximum bytes per packet to capture) */
+#define SNAP_LEN 1518
+
+/* ethernet headers are always exactly 14 bytes [1] */
+#define SIZE_ETHERNET 14
+
+/* Ethernet addresses are 6 bytes */
+#define ETHER_ADDR_LEN	6
+/* Ethernet header */
+struct sniff_ethernet {
+        u_char  ether_dhost[ETHER_ADDR_LEN];    /* destination host address */
+        u_char  ether_shost[ETHER_ADDR_LEN];    /* source host address */
+        u_short ether_type;                     /* IP? ARP? RARP? etc */
+};
+
+/* IP header */
+struct sniff_ip {
+        u_char  ip_vhl;                 /* version << 4 | header length >> 2 */
+        u_char  ip_tos;                 /* type of service */
+        u_short ip_len;                 /* total length */
+        u_short ip_id;                  /* identification */
+        u_short ip_off;                 /* fragment offset field */
+        #define IP_RF 0x8000            /* reserved fragment flag */
+        #define IP_DF 0x4000            /* dont fragment flag */
+        #define IP_MF 0x2000            /* more fragments flag */
+        #define IP_OFFMASK 0x1fff       /* mask for fragmenting bits */
+        u_char  ip_ttl;                 /* time to live */
+        u_char  ip_p;                   /* protocol */
+        u_short ip_sum;                 /* checksum */
+        struct  in_addr ip_src,ip_dst;  /* source and dest address */
+};
+#define IP_HL(ip)               (((ip)->ip_vhl) & 0x0f)
+#define IP_V(ip)                (((ip)->ip_vhl) >> 4)
+
+/* TCP header */
+typedef u_int tcp_seq;
+
+struct sniff_tcp {
+        u_short th_sport;               /* source port */
+        u_short th_dport;               /* destination port */
+        tcp_seq th_seq;                 /* sequence number */
+        tcp_seq th_ack;                 /* acknowledgement number */
+        u_char  th_offx2;               /* data offset, rsvd */
+#define TH_OFF(th)      (((th)->th_offx2 & 0xf0) >> 4)
+        u_char  th_flags;
+        #define TH_FIN  0x01
+        #define TH_SYN  0x02
+        #define TH_RST  0x04
+        #define TH_PUSH 0x08
+        #define TH_ACK  0x10
+        #define TH_URG  0x20
+        #define TH_ECE  0x40
+        #define TH_CWR  0x80
+        #define TH_FLAGS        (TH_FIN|TH_SYN|TH_RST|TH_ACK|TH_URG|TH_ECE|TH_CWR)
+        u_short th_win;                 /* window */
+        u_short th_sum;                 /* checksum */
+        u_short th_urp;                 /* urgent pointer */
+};
 
 //GHashTable *inode_table = g_hash_table_new(g_direct_hash, g_direct_equal);
 //GHashTable *hash_table = g_hash_table_new(g_str_hash, g_str_equal);
@@ -41,6 +102,7 @@ get_curtime(timeval val)
 Net_process *get_process_from_inode(unsigned long inode, const char *device_name)
 {
 	int pid = match_pid(inode);
+	printf("pid%d",pid);
 	Net_process_list *current = get_proc_list_instance(NULL) ;/*global list of all procs*/
 	while (current != NULL)
 	{
@@ -49,6 +111,18 @@ Net_process *get_process_from_inode(unsigned long inode, const char *device_name
 		if (pid == curr_process->pid)
 			return curr_process;
 		current = current->next;
+	}
+	if (pid!= -1)
+	{
+		Net_process *proc = g_slice_new(Net_process);
+
+		Net_process_list *temp = g_slice_new(Net_process_list);
+		glibtop_proc_state *proc_buf = g_slice_new(glibtop_proc_state);
+		glibtop_get_proc_state(proc_buf, pid);
+		printf("proc name%s\n",proc_buf->cmd);
+		Net_process_init(proc, pid,"", proc_buf->cmd);
+
+		return proc;
 	}
 	return NULL;
 }
@@ -72,11 +146,19 @@ get_process(Connection *conn, const char *device_name)
 		conn->ref_packet = reverse_pkt;
 	}
 	/*this proc is present in the hash table*/
+	printf("%s inode:%d\n",Packet_gethash(conn->ref_packet),inode );
 	Net_process *proc = get_process_from_inode(inode, device_name);
 	if (proc == NULL)
 	{
 		proc = g_slice_new(Net_process);
+		printf("%s not in /proc/net/tcp \n", Packet_gethash(conn->ref_packet));
 		Net_process_init(proc, inode,"", Packet_gethash(conn->ref_packet));
+		Net_process_list *temp = g_slice_new(Net_process_list);
+		Net_process_list_init(temp, proc, get_proc_list_instance(NULL));
+		get_proc_list_instance(temp);	//processes = temp
+	}
+	else
+	{
 		Net_process_list *temp = g_slice_new(Net_process_list);
 		Net_process_list_init(temp, proc, get_proc_list_instance(NULL));
 		get_proc_list_instance(temp);	//processes = temp
@@ -115,7 +197,7 @@ int
 process_tcp(u_char *userdata, const struct pcap_pkthdr *header /* header */,const u_char *m_packet) /*hash tables pass*/
 {	/*WIP*/
 	packet_args *args = (packet_args *)userdata;
-	struct tcphdr *tcp = (struct tcphdr *)m_packet;
+	struct sniff_tcp *tcp = (struct sniff_tcp *)(m_packet);
 	timeval cur = header->ts;
 	get_curtime(header->ts);
 	Packet *packet = g_slice_new(Packet);
@@ -128,6 +210,10 @@ process_tcp(u_char *userdata, const struct pcap_pkthdr *header /* header */,cons
 		//printf("LOOKING at packet sip%s :%d-dip%s:%d\n",inet_ntoa(args->ip_src),ntohs(tcp->th_sport),inet_ntoa(args->ip_dst),ntohs(tcp->th_sport));
 		Packet_init_in_addr(packet, args->ip_src, ntohs(tcp->th_sport), args->ip_dst, ntohs(tcp->th_dport), header->len, header->ts);
 		//printf("src:%s dest:%s\n",args->ip_src,args->ip_dst);
+		if(is_pkt_outgoing(packet))
+			printf("outgoind\n");
+		else
+			printf("incoming\n");
 			break;
 
 	case AF_INET6:
@@ -137,6 +223,10 @@ process_tcp(u_char *userdata, const struct pcap_pkthdr *header /* header */,cons
 		inet_ntop(AF_INET6, &args->ip6_dst, remote_string, 46);
 		printf("src:%s dest:%s\n",args->ip6_src,args->ip6_dst);
 		printf("src:%s dest:%s\n",local_string,remote_string );
+		if(is_pkt_outgoing(packet))
+			printf("outgoind\n");
+		else
+			printf("incoming\n");
 		free(local_string);
 		free(remote_string);
 		break;
@@ -147,6 +237,10 @@ process_tcp(u_char *userdata, const struct pcap_pkthdr *header /* header */,cons
 	if(packet != NULL)
 	{
 		Connection *connection = find_connection(packet);
+		/*if(is_pkt_outgoing(packet))
+			unsigned long inode = match_hash_to_inode(Packet_gethash(packet));
+		else
+			unsigned long inode = match_hash_to_inode(Packet_gethash(get_inverted_packet(packet)));*/
 		if (connection != NULL)
 			add_packet_to_connection(connection, packet);
 		else
@@ -155,7 +249,8 @@ process_tcp(u_char *userdata, const struct pcap_pkthdr *header /* header */,cons
 			Connection_init(connection, packet);
 			//Add this connection to a connectionlist depending on the process it belongs to
 			//write this 
-			get_process(connection, args->device);
+			 get_process(connection, args->device);
+			// add_packet_to_connection(temp_proc->proc_connections, packet);
 
 		}
 	}
@@ -174,7 +269,8 @@ get_interface_handle(char *device, GError **err)
 {	
 	bpf_u_int32 maskp; // subnet mask
 	bpf_u_int32 netp; // interface IP
-
+char filter_exp[] = "ip";
+struct bpf_program fp;	
 	pcap_t *temp = pcap_open_live(device, BUFSIZ, promisc, 100, errbuf);
 	pcap_lookupnet(device, &netp, &maskp, errbuf);
 	if(temp == NULL)
@@ -186,6 +282,17 @@ get_interface_handle(char *device, GError **err)
 					device);
 		return NULL;
 	}
+	if (pcap_compile(temp, &fp, filter_exp, 0, netp) == -1) {
+		fprintf(stderr, "Couldn't parse filter %s: %s\n",
+		    filter_exp, pcap_geterr(temp));
+		exit(EXIT_FAILURE);
+	}
+		if (pcap_setfilter(temp, &fp) == -1) {
+		fprintf(stderr, "Couldn't install filter %s: %s\n",
+		    filter_exp, pcap_geterr(temp));
+		exit(EXIT_FAILURE);
+	}
+
 
 	packet_handle *temp_packet_handle = (packet_handle *)malloc(sizeof(packet_handle));
 	if(temp_packet_handle != NULL)
@@ -226,9 +333,8 @@ open_pcap_handles()
 			add_callback(new_handle, packet_ip, process_ip);
 			add_callback(new_handle, packet_ip6, process_ip6);
 			add_callback(new_handle, packet_tcp, process_tcp);
-			if(pcap_setnonblock(new_handle->pcap_handle, 1, errbuf) == -1)
-			
-				printf("failed to set to non blocking mode %s\n",devices[count]);
+		//	if(pcap_setnonblock(new_handle->pcap_handle, 1, errbuf) == -1)
+		//		printf("failed to set to non blocking mode %s\n",devices[count]);
 			if(previous_handle != NULL)
 				previous_handle->next = new_handle;
 			previous_handle = new_handle;
@@ -277,24 +383,47 @@ packet_parse_tcp(packet_handle *handle, const struct pcap_pkthdr *hdr, const u_c
 void
 packet_parse_ip(packet_handle *handle, const struct pcap_pkthdr *hdr, const u_char *pkt)
 {
-	const struct ip *ip_packet = (struct ip *)pkt;
+	const struct sniff_ip *ip_packet = (struct sniff_ip*)pkt;
 	printf("Looking at packet with length %d \n", hdr->len);
 	//check
-	u_char *payload = (u_char *)pkt + sizeof(struct ip);
+	size_ip = IP_HL(ip_packet)*4;
+		if (size_ip < 20) {
+		printf("   * Invalid IP header length: %u bytes\n", size_ip);
+		return;
+	}
+		/* print source and destination IP addresses */
+	
+	
+
+	u_char *payload = (u_char *)(pkt + sizeof(ip));
 	if (handle->callback[packet_ip] != NULL)
 	{	
 		if(handle->callback[packet_ip](handle->userdata, hdr, pkt))
 			return ;
 	}
-
+const struct sniff_tcp *tcp;
 	switch(ip_packet->ip_p)
 	{
 		case IPPROTO_TCP:
 			printf("exec tcp\n");
-			packet_parse_tcp(handle, hdr, pkt);
+			printf("       From: %s\n", inet_ntoa(ip_packet->ip_src));
+	printf("         To: %s\n", inet_ntoa(ip_packet->ip_dst));
+			tcp  = (struct sniff_tcp*)(pkt  + sizeof(ip));
+			printf("   Src port: %d\n", ntohs(tcp->th_sport));
+			printf("   Dst port: %d\n", ntohs(tcp->th_dport));
+			packet_parse_tcp(handle, hdr, payload);
 			break;
 		//non tcp IP packet support not present currently
+			
+		case IPPROTO_ICMP:
+			printf("   Protocol: ICMP\n");
+			break;
+		case IPPROTO_IP:
+			printf("   Protocol: IP\n");
+			break;
 		default:
+			
+		
 			break;
 	}
 }
@@ -302,7 +431,7 @@ packet_parse_ip(packet_handle *handle, const struct pcap_pkthdr *hdr, const u_ch
 void packet_parse_ip6(packet_handle *handle, const struct pcap_pkthdr *hdr, const u_char *pkt)
 {
 	const struct ip6_hdr *ip6 = (struct ip6_hdr *)pkt;
-	u_char *payload = (u_char *)pkt + sizeof(struct ip6_hdr);
+	u_char *payload = (u_char *)(pkt + sizeof(ip6));
 
 	if (handle->callback[packet_ip6] != NULL) 
 	{
@@ -323,7 +452,7 @@ void packet_parse_ip6(packet_handle *handle, const struct pcap_pkthdr *hdr, cons
 void
 packet_parse_ethernet(packet_handle * handle, const struct pcap_pkthdr *hdr, const u_char *pkt)
 {
-	const struct ether_header *ethernet = (struct ether_header *)pkt;
+	const struct sniff_ethernet *ethernet = (struct sniff_ethernet *)pkt;
 	u_char *payload = (u_char *)(pkt +14);	
 	printf("parse ethernet\n");
 	switch (ntohs(ethernet->ether_type)) 

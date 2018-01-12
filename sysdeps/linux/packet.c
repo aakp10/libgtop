@@ -92,6 +92,7 @@ is_pkt_outgoing(Packet *pkt)
 		if (is_local)
 		{
 			pkt->dir = dir_outgoing;
+			return true;
 		}
 		else
 		{
@@ -149,10 +150,10 @@ get_inverted_packet(Packet *pkt)
 	direction inverted_dir = invert(pkt->dir);
 	Packet *inverted_packet = g_slice_new (Packet);
 	if (pkt->sa_family == AF_INET)
-		Packet_init_in_addr(inverted_packet, pkt->sip, pkt->sport, pkt->dip, pkt->dport, 
+		Packet_init_in_addr(inverted_packet, pkt->dip, pkt->dport, pkt->sip, pkt->sport, 
 							pkt->len, pkt->time, inverted_dir);
 	else
-		Packet_init_in6_addr(inverted_packet, pkt->sip6, pkt->sport, pkt->dip6, pkt->dport,
+		Packet_init_in6_addr(inverted_packet, pkt->dip6, pkt->dport, pkt->sip6, pkt->sport,
 							pkt->len, pkt->time, inverted_dir);
 	return inverted_packet; 
 }
@@ -180,14 +181,18 @@ Packet_gethash(Packet *pkt)
 		inet_ntop(pkt->sa_family, &(pkt->dip6), remote_string, 46);
 	}
 	if (is_pkt_outgoing(pkt))
-		snprintf(pkt_hash, HASHKEYSIZE*sizeof(char), "%s:%d-%s:%d",
+		{snprintf(pkt_hash, HASHKEYSIZE*sizeof(char), "%s:%d-%s:%d",
 				local_string, pkt->sport, remote_string, pkt->dport);
+	printf("outgoing\n");
+}
 	else
-		snprintf(pkt_hash, HASHKEYSIZE*sizeof(char), "%s:%d-%s:%d",
+		{snprintf(pkt_hash, HASHKEYSIZE*sizeof(char), "%s:%d-%s:%d",
 				remote_string, pkt->dport, local_string, pkt->sport);
-	
+	printf("incoming\n");
+	}
 	pkt->pkt_hash = g_strdup(pkt_hash);
-	printf("hash %s:%d-%s:%d\n", local_string, pkt->sport, remote_string, pkt->dport);
+//	printf("hash %s:%d-%s:%d\n", local_string, pkt->sport, remote_string, pkt->dport);
+printf("hash %s-%s\n", local_string, remote_string);
 
 	if (pkt->pkt_hash != NULL)
 	return pkt->pkt_hash;

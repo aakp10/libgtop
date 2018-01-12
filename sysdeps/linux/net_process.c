@@ -6,17 +6,18 @@
 
 //Net_process functions
 void 
-Net_process_init(Net_process *proc, unsigned long inode_val, char *device_name_val, char *proc_name_val)
+Net_process_init(Net_process *proc, unsigned long pid , char *device_name_val, char *proc_name_val)
 {
 	proc->proc_name = proc_name_val;
 	//debug statement
 	printf("Process name :%s\n",proc->proc_name);
 	proc->device_name = device_name_val;
 	//proc->inode_val = 
-	proc->pid = 0;
+	proc->pid = pid;
 	proc->uid = 0;
 	proc->bytes_sent = 0;
 	proc->bytes_recv = 0;
+	proc->proc_connections = NULL;
 }
 
 int 
@@ -64,7 +65,7 @@ to_kbps(u_int64_t bytes)
 	return to_kb(bytes)/PERIOD; //define macro
 }
 void /*RE check*/
-Net_process_get_kbps(Net_process *proc, float *recvd, float *sent, timeval curtime)
+Net_process_get_kbps(Net_process *proc, float &recvd, float &sent, timeval curtime)
 {
 	u_int64_t sum_sent = 0;
 	u_int64_t sum_recv = 0;
@@ -86,8 +87,8 @@ Net_process_get_kbps(Net_process *proc, float *recvd, float *sent, timeval curti
 			if (previous != NULL)
 				Connection_list_setNext(previous,curr_conn);
 			//g_slice_new is used to allocate mem to these structs
-			g_slice_free(Conn_list, to_delete_list);
-			g_slice_free(Connection, conn_to_delete);
+			//g_slice_free(Conn_list, to_delete_list);
+			//g_slice_free(Connection, conn_to_delete);
 		}
 		else
 		{
@@ -95,17 +96,18 @@ Net_process_get_kbps(Net_process *proc, float *recvd, float *sent, timeval curti
 			*sum and delete funct for connections in a connection list
 			*
 			**/
+			printf ("\nchecking proc pid:%d\n",proc->pid);
 			u_int64_t sent = 0;
 			u_int64_t recv = 0;
-			Connection_sum_and_del(Conn_list_get_connection(curr_conn), curtime, &recv, &sent);
+			Connection_sum_and_del(Conn_list_get_connection(curr_conn), curtime, recv, sent);
 			sum_recv += recv;
 			sum_sent += sent;
 			previous = curr_conn;
 			curr_conn = Connection_list_get_next(curr_conn); 
 		}
 	}
-	*recvd = to_kbps(sum_recv);
-	*sent = to_kbps(sum_sent);
+	recvd = to_kbps(sum_recv);
+	sent = to_kbps(sum_sent);
 
 }
 

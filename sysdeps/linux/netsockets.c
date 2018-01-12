@@ -18,10 +18,25 @@ match_pid(int inode)
 	return -1;
 }
 
+
+void 
+print_table(gpointer key, gpointer value, gpointer user_data)
+{
+	printf("%s :: %d\n", key, GPOINTER_TO_INT(value));
+}
+
+void 
+print_hash(GHashTable *inode_table)
+{
+	g_hash_table_foreach(inode_table, (GHFunc)print_table, NULL);
+}
+
 gint
 match_hash_to_inode(char *hash)
-{
+{	printf("matching hash%s\n", hash );
 	GHashTable *hash_table = get_global_hashes_instance().hash_table;
+	printf("matching hash%s\n", hash );
+	print_hash(hash_table);
 	if (g_hash_table_lookup(hash_table, hash) != NULL)
 	{	
 		return GPOINTER_TO_INT(g_hash_table_lookup(hash_table, hash));
@@ -93,6 +108,7 @@ add_socket_list(char *buf, glibtop_socket *list_socket, GHashTable *inode_table,
 		inet_ntop(AF_INET, &(*(temp_socket->local_addr)), lip, sizeof(lip));
 		inet_ntop(AF_INET, &(*(temp_socket->rem_addr)), rip, sizeof(rip));
 		snprintf(temp_hash, HASHKEYSIZE * sizeof(char), "%s:%d-%s:%d", lip, temp_socket->local_port, rip, temp_socket->rem_port);
+		//snprintf(temp_hash, HASHKEYSIZE * sizeof(char), "%s-%s", lip, rip);
 	
 	}
 	//check for malloc
@@ -127,6 +143,7 @@ glibtop_get_netsockets (char *filename, GHashTable *inode_table, GHashTable *has
 	fgets(line, sizeof(line), fd);
 	next_socket = add_socket_list(line, next_socket, inode_table, hash_table);
 	}
+	fclose(fd);
 	return socket_list;
 }
 
