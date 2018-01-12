@@ -73,8 +73,8 @@ Net_process_get_kbps(Net_process *proc, float &recvd, float &sent, timeval curti
 	Conn_list *previous = NULL;
 	while (curr_conn != NULL)
 	{
-		if (Connection_get_last_packet_time(Conn_list_get_connection(curr_conn)) <= curtime.tv_sec - CONNTIMEOUT/*macro*/)
-		{	//sum up bytes transfer for all connections in a connection list
+		//if (Connection_get_last_packet_time(Conn_list_get_connection(curr_conn)) <= curtime.tv_sec - CONNTIMEOUT/*macro*/)
+	/*	{	//sum up bytes transfer for all connections in a connection list
 			proc->bytes_sent = Conn_list_get_connection(curr_conn)->bytes_sent;
 			proc->bytes_recv = Conn_list_get_connection(curr_conn)->bytes_recv;
 			
@@ -88,9 +88,9 @@ Net_process_get_kbps(Net_process *proc, float &recvd, float &sent, timeval curti
 				Connection_list_setNext(previous,curr_conn);
 			//g_slice_new is used to allocate mem to these structs
 			//g_slice_free(Conn_list, to_delete_list);
-			//g_slice_free(Connection, conn_to_delete);
-		}
-		else
+			//g_slice_free(Connection, conn_to_delete);*/
+		//}
+		//else
 		{
 			/*
 			*sum and delete funct for connections in a connection list

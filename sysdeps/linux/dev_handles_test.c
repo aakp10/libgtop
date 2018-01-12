@@ -87,7 +87,7 @@ int main()
 			userdata->device = current_handle->device_name;
 			userdata->sa_family = AF_UNSPEC;
 			
-			if (current_handle->pcap_handle == NULL || g_strcmp0(current_handle->device_name,"lo") == 0 || g_strcmp0(current_handle->device_name,"enp2s0") == 0 )
+			if (current_handle->pcap_handle == NULL /* ||g_strcmp0(current_handle->device_name,"lo") == 0 || g_strcmp0(current_handle->device_name,"enp2s0") == 0 */)
 				continue;
 			int retval = packet_dispatch(current_handle, 0, (u_char *)userdata, sizeof(packet_args))	;
 			//printf will be later changed to  gerror

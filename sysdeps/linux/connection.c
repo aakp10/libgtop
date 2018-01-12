@@ -254,12 +254,13 @@ u_int64_t Packet_list_sum_and_del(Packet_list *pktlist, timeval t)
 			//continue;
 		printf("%d. %dbytes\n",i++,current->pkt->len);
 		sum += current->pkt->len;
+
 		}
-		
+
 		previous = current;
 	//	printf("bytes:%d\n",sum);
 		current = current->next;
-		
+				
 	}
 	printf("sum is %d: \n",sum);
 	return sum;
