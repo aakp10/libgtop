@@ -246,15 +246,20 @@ u_int64_t Packet_list_sum_and_del(Packet_list *pktlist, timeval t)
 	Packet_list_node *previous = NULL;
 	while (current != NULL && previous != current && current->pkt)
 	{	//printf("%d:len%d.....",i++,current->pkt->sport);
-		if (current->pkt->time.tv_sec <= t.tv_sec - PERIOD)
+		if (!(current->pkt->time.tv_sec <= t.tv_sec - PERIOD))
 		{ 
-			sum -= current->pkt->len;
-		}
+			//previous->next = current->next;
+			//g_slice_free(Packet_list_node, current);
+			//current = previous->next;
+			//continue;
 		printf("%d. %dbytes\n",i++,current->pkt->len);
 		sum += current->pkt->len;
+		}
+		
 		previous = current;
 	//	printf("bytes:%d\n",sum);
 		current = current->next;
+		
 	}
 	printf("sum is %d: \n",sum);
 	return sum;
