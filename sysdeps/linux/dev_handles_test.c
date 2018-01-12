@@ -63,7 +63,7 @@ do_refresh()
 		curproc = curproc->next;
 		n++;
 	}
-	print_stat(st, nproc);
+	print_stat(st, nproc-1);
 
 }
 

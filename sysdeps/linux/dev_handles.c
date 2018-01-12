@@ -113,7 +113,7 @@ Net_process *get_process_from_inode(unsigned long inode, const char *device_name
 		current = current->next;
 	}
 	if (pid!= -1)
-	{
+	{	//if(is_packet)
 		Net_process *proc = g_slice_new(Net_process);
 
 		Net_process_list *temp = g_slice_new(Net_process_list);
@@ -333,8 +333,8 @@ open_pcap_handles()
 			add_callback(new_handle, packet_ip, process_ip);
 			add_callback(new_handle, packet_ip6, process_ip6);
 			add_callback(new_handle, packet_tcp, process_tcp);
-		//	if(pcap_setnonblock(new_handle->pcap_handle, 1, errbuf) == -1)
-		//		printf("failed to set to non blocking mode %s\n",devices[count]);
+			if(pcap_setnonblock(new_handle->pcap_handle, 1, errbuf) == -1)
+				printf("failed to set to non blocking mode %s\n",devices[count]);
 			if(previous_handle != NULL)
 				previous_handle->next = new_handle;
 			previous_handle = new_handle;

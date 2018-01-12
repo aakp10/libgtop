@@ -160,19 +160,33 @@ find_connection_with_matching_source(Packet *pkt)
 void 
 print_packet_list(Connection *conn)
 {	int i =1;
-	Packet_list_node *sent_packets = conn->sent_packets->content;
-	Packet_list_node *received_packets = conn->received_packets->content;
+	Packet_list_node *sent_packets;
+	Packet_list_node *received_packets;
+	if(conn->sent_packets)
+		sent_packets = conn->sent_packets->content;
+	if(conn->received_packets)
+		received_packets = conn->received_packets->content;
 	printf("SENT PACKETS\n");
-	while(sent_packets != NULL)
-	{
-		printf("%d. %dbytes\n",i++,sent_packets->pkt->len);
+	Packet_list_node *previous = NULL;
+	while(sent_packets != NULL && previous != sent_packets)
+	{	if(sent_packets->pkt)
+		{printf("%d. %dbytes\n",i++,sent_packets->pkt->len);
+		previous =sent_packets;
 		sent_packets = sent_packets->next;
+		}
+		else
+			break;
 	}
+	previous = NULL;
 	printf("received_packets\n");
-	while(received_packets != NULL)
-	{
-		printf("%d. %dbytes\n",i++,received_packets->pkt->len);
-		received_packets = received_packets->next;
+	while(received_packets != NULL && previous != received_packets)
+	{	if(received_packets->pkt )
+		{
+			printf("%d. %dbytes\n",i++,received_packets->pkt->len);
+			previous = received_packets;
+		received_packets = received_packets->next;}
+		else
+			return;
 	}
 
 }
@@ -230,18 +244,13 @@ u_int64_t Packet_list_sum_and_del(Packet_list *pktlist, timeval t)
 	int i=0;
 	Packet_list_node *current = pktlist->content;
 	Packet_list_node *previous = NULL;
-	while (current != NULL && previous != current)
+	while (current != NULL && previous != current && current->pkt)
 	{	//printf("%d:len%d.....",i++,current->pkt->sport);
-		/*if (current->pkt->time.tv_sec <= t.tv_sec - PERIOD)
+		if (current->pkt->time.tv_sec <= t.tv_sec - PERIOD)
 		{ 
-			if (current == pktlist->content)
-				pktlist->content = NULL;
-			else if (previous != NULL)
-				previous->next = NULL;
-			//g_slice_free(Packet_list_node, current);
-			return sum;
-		}*/
-			printf("%d. %dbytes\n",i++,current->pkt->len);
+			sum -= current->pkt->len;
+		}
+		printf("%d. %dbytes\n",i++,current->pkt->len);
 		sum += current->pkt->len;
 		previous = current;
 	//	printf("bytes:%d\n",sum);
