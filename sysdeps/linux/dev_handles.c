@@ -245,6 +245,16 @@ process_tcp(u_char *userdata, const struct pcap_pkthdr *header /* header */,cons
 			add_packet_to_connection(connection, packet);
 		else
 		{	printf("NEW PROC \n");
+			/*if(is_pkt_outgoing(packet))
+				{	unsigned long inode = match_hash_to_inode(Packet_gethash(packet));
+					if(inode != -1)
+					{
+						int pid = match_pid(inode);
+						Net_process *proc = match_proc_with_pid(pid);
+					}
+				}
+			else*/
+			//	unsigned long inode = match_hash_to_inode(Packet_gethash(get_inverted_packet(packet)));
 			Connection *connection = g_slice_new(Connection);
 			Connection_init(connection, packet);
 			//Add this connection to a connectionlist depending on the process it belongs to

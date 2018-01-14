@@ -33,8 +33,11 @@ do_refresh()
 	//test_inode_table = g_hash_table_new(g_direct_hash, g_direct_equal);
 	//test_hash_table = g_hash_table_new(g_str_hash, g_str_equal);
 	
-	char *fname = g_strdup("/proc/net/tcp");
+	char *fname = g_strdup("/proc/self/net/tcp");
 	global_hashes test_hash = get_global_hashes_instance();
+	test_hash.inode_table = NULL;
+	test_hash.hash_table = NULL;
+	test_hash = get_global_hashes_instance();
 	glibtop_socket *socket_list = glibtop_get_netsockets (fname, test_hash.inode_table, test_hash.hash_table);
 	g_free(fname);
 	Net_process_list *curproc = get_proc_list_instance(NULL);
@@ -69,7 +72,7 @@ do_refresh()
 
 int main()
 {	
-	char *fname = g_strdup("/proc/net/tcp");
+	char *fname = g_strdup("/proc/self/net/tcp");
 	global_hashes test_hash = get_global_hashes_instance();
 	glibtop_socket *socket_list = glibtop_get_netsockets (fname, test_hash.inode_table, test_hash.hash_table);
 	g_free(fname);

@@ -7,6 +7,7 @@
 #include <glibtop/procstate.h>
 #include <glib.h>
 #include <arpa/inet.h>
+#include <errno.h>
 
 gint 
 match_pid(int inode)
@@ -107,7 +108,7 @@ add_socket_list(char *buf, glibtop_socket *list_socket, GHashTable *inode_table,
 		char rip[128];
 		inet_ntop(AF_INET, &(*(temp_socket->local_addr)), lip, sizeof(lip));
 		inet_ntop(AF_INET, &(*(temp_socket->rem_addr)), rip, sizeof(rip));
-		snprintf(temp_hash, HASHKEYSIZE * sizeof(char), "%s:%d-%s:%d", lip, temp_socket->local_port, rip, temp_socket->rem_port);
+		snprintf(temp_hash, HASHKEYSIZE * sizeof(closedhar), "%s:%d-%s:%d", lip, temp_socket->local_port, rip, temp_socket->rem_port);
 		//snprintf(temp_hash, HASHKEYSIZE * sizeof(char), "%s-%s", lip, rip);
 	
 	}
@@ -127,8 +128,9 @@ glibtop_get_netsockets (char *filename, GHashTable *inode_table, GHashTable *has
 	FILE *fd = fopen(filename, "r");
 
 	if (fd == NULL)
-	{
+	{	
 		fprintf(stderr, "Error opening file : %s", filename);
+		printf("%d\n",errno );
 		return NULL;
 	}
 	//removing the file header
